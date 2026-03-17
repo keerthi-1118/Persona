@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover"/>
+  <meta name="theme-color" content="#0d0d18"/>
+  <title>Persona — Notes</title>
+  <link rel="stylesheet" href="css/style.css"/>
+  <link rel="manifest" href="manifest.json"/>
+</head>
+<body>
+<div class="app-shell">
+  <header class="app-header">
+    <div>
+      <div class="header-title"><svg class="line-icon" style="width:22px;height:22px"><use href="#icon-edit"></use></svg> Notes</div>
+      <div class="header-subtitle" id="notes-count">0 notes</div>
+    </div>
+  </header>
+
+  <main class="page-content">
+    <div class="search-bar">
+      <span class="search-icon"><svg class="line-icon" style="width:16px;height:16px"><use href="#icon-search"></use></svg></span>
+      <input type="text" id="search-notes" placeholder="Search notes…" oninput="filterNotes()"/>
+    </div>
+
+    <!-- Pinned -->
+    <div id="pinned-section" style="display:none">
+      <div class="section-title" style="margin-bottom:8px"><svg class="line-icon" style="width:16px;height:16px;margin-bottom:-2px"><use href="#icon-pin"></use></svg> Pinned</div>
+      <div class="notes-grid" id="pinned-grid" style="margin-bottom:16px"></div>
+    </div>
+
+    <!-- All -->
+    <div class="section-title" style="margin-bottom:8px">All Notes</div>
+    <div class="notes-grid" id="notes-grid">
+      <div class="empty-state" style="grid-column:1/-1;padding:30px 0">
+        <div class="empty-icon sticker sticker-md"><svg class="line-icon"><use href="#icon-edit"></use></svg></div>
+        <h3>No notes yet</h3>
+        <p>Tap + to start writing</p>
+      </div>
+    </div>
+  </main>
+
+  <button class="fab" id="fab" onclick="openNote(null)">+</button>
+</div>
+
+<!-- Note Editor Sheet (full height) -->
+<div class="sheet-backdrop" id="backdrop"></div>
+<div class="bottom-sheet" id="sheet" style="max-height:100vh;border-radius:var(--radius-xl)">
+  <div class="sheet-handle" onclick="closeNote()"></div>
+  <div class="sheet-header">
+    <input type="text" id="note-title" placeholder="Note title…"
+      style="border:none;background:none;font-size:18px;font-weight:700;color:var(--text-primary);outline:none;flex:1;padding:0"/>
+    <div style="display:flex;gap:8px">
+      <button class="sheet-close" id="pin-btn" onclick="togglePin()" title="Pin"><svg class="line-icon" style="width:20px;height:20px"><use href="#icon-pin"></use></svg></button>
+      <button class="sheet-close" id="del-btn" onclick="deleteCurrentNote()" style="display:none;color:var(--red)"><svg class="line-icon" style="width:20px"><use href="#icon-trash"></use></svg></button>
+      <button class="sheet-close" onclick="closeNote()"><svg class="line-icon" style="width:20px"><use href="#icon-x"></use></svg></button>
+    </div>
+  </div>
+  <input type="hidden" id="note-id"/>
+  <div style="padding:0 20px 20px">
+    <textarea id="note-content" placeholder="Start writing…"
+      style="width:100%;min-height:55vh;border:none;background:none;font-size:15px;color:var(--text-secondary);outline:none;resize:none;line-height:1.8"></textarea>
+  </div>
+  <div class="sheet-footer">
+    <button class="btn btn-primary btn-full" onclick="saveNote()"><svg class="line-icon" style="width:18px;height:18px"><use href="#icon-check"></use></svg> Save Note</button>
+  </div>
+</div>
+
+<div class="toast-container" id="toast-container"></div>
+<script src="js/auth-guard.js"></script>
+<script src="js/app.js"></script>
+<script src="js/clock-nav.js"></script>
+<script>
+  let allNotes = [], isPinned = false;
+  document.addEventListener('DOMContentLoaded', () => { initApp(); loadNotes(); });
+
+  async function loadNotes() {
+    allNotes = await API.get('/notes/');
+    document.getElementById('notes-count').textContent = allNotes.length + ' notes';
+    renderNotes(allNotes);
+  }
+
+  function renderNotes(list) {
+    const pinned = list.filter(n=>n.pinned), rest = list.filter(n=>!n.pinned);
+    const sec = document.getElementById('pinned-section');
+    sec.style.display = pinned.length ? 'block' : 'none';
+    document.getElementById('pinned-grid').innerHTML = pinned.map(noteCard).join('');
+    document.getElementById('notes-grid').innerHTML  = rest.length ? rest.map(noteCard).join('') :
+      `<div class="empty-state" style="grid-column:1/-1;padding:20px 0"><div class="empty-icon sticker sticker-md"><svg class="line-icon"><use href="#icon-edit"></use></svg></div><h3>No notes</h3></div>`;
+  }
+
+  function noteCard(n) {
+    return `<div class="note-card" onclick="openNote(${JSON.stringify(n).replace(/"/g,'&quot;')})">
+      ${n.pinned?'<div style="font-size:11px;color:var(--amber);margin-bottom:4px"><svg class="line-icon" style="width:12px;height:12px;margin-bottom:-2px"><use href="#icon-pin"></use></svg> Pinned</div>':''}
+      <div class="note-card-title">${esc(n.title||'Untitled')}</div>
+      <div class="note-card-preview">${esc((n.content||'').slice(0,100))}</div>
+      <div class="note-card-date">${new Date(n.updated_at).toLocaleDateString('en-IN')}</div>
+    </div>`;
+  }
+
+  function filterNotes() {
+    const q = document.getElementById('search-notes').value.toLowerCase();
+    renderNotes(q ? allNotes.filter(n => ((n.title||'')+(n.content||'')).toLowerCase().includes(q)) : allNotes);
+  }
+
+  function openNote(n) {
+    document.getElementById('note-id').value     = n?.id||'';
+    document.getElementById('note-title').value  = n?.title||'';
+    document.getElementById('note-content').value= n?.content||'';
+    isPinned = !!(n?.pinned);
+    document.getElementById('pin-btn').style.color = isPinned?'var(--amber)':'';
+    document.getElementById('del-btn').style.display = n?.id ? 'flex' : 'none';
+    document.getElementById('sheet').classList.add('show');
+    document.getElementById('backdrop').classList.add('show');
+    setTimeout(()=>document.getElementById(n?'note-content':'note-title').focus(), 350);
+  }
+  function closeNote() {
+    document.getElementById('sheet').classList.remove('show');
+    document.getElementById('backdrop').classList.remove('show');
+  }
+  function togglePin() {
+    isPinned = !isPinned;
+    document.getElementById('pin-btn').style.color = isPinned?'var(--amber)':'';
+  }
+  async function saveNote() {
+    const id = document.getElementById('note-id').value;
+    const p  = { title:document.getElementById('note-title').value||'Untitled', content:document.getElementById('note-content').value, pinned:isPinned?1:0 };
+    if (id) await API.put('/notes/'+id, p); else await API.post('/notes/', p);
+    closeNote(); showToast('success','Saved!',''); loadNotes();
+  }
+  async function deleteCurrentNote() {
+    const id = document.getElementById('note-id').value;
+    if (!id||!confirm('Delete this note?')) return;
+    await API.del('/notes/'+id); closeNote(); showToast('info','Deleted',''); loadNotes();
+  }
+</script>
+</body>
+</html>
+
+
+

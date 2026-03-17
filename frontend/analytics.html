@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover"/>
+  <meta name="theme-color" content="#0d0d18"/>
+  <title>Persona — Analytics</title>
+  <link rel="stylesheet" href="css/style.css"/>
+  <link rel="manifest" href="manifest.json"/>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
+</head>
+<body>
+<div class="app-shell">
+  <header class="app-header">
+    <div>
+      <div class="header-title"><svg class="line-icon" style="width:22px;height:22px"><use href="#icon-chart"></use></svg> Analytics</div>
+      <div class="header-subtitle">Your productivity insights</div>
+    </div>
+    <div class="header-right">
+      <button class="icon-btn tab-pill active" id="period-btn-week" onclick="loadAnalytics('week',this)" style="width:auto;padding:0 12px;font-size:12px">Week</button>
+      <button class="icon-btn" id="period-btn-month" onclick="loadAnalytics('month',this)" style="width:auto;padding:0 12px;font-size:12px">Month</button>
+    </div>
+  </header>
+
+  <main class="page-content">
+
+    <!-- Productivity score hero -->
+    <div class="card" style="text-align:center;padding:24px 16px;background:linear-gradient(135deg,rgba(124,111,255,0.1),rgba(255,111,145,0.05))">
+      <div style="font-size:12px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:12px">Productivity Score</div>
+      <div style="position:relative;display:inline-block">
+        <svg width="160" height="160" viewBox="0 0 160 160" class="svg-ring">
+          <circle class="ring-track" cx="80" cy="80" r="70" stroke-width="10"/>
+          <circle class="ring-progress" cx="80" cy="80" r="70" stroke-width="10"
+            id="score-ring" stroke="#7C6FFF"
+            stroke-dasharray="439.82" stroke-dashoffset="439.82"/>
+        </svg>
+        <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center">
+          <div class="score-big" id="score-val">–</div>
+          <div class="score-sub">out of 100</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Stat tiles -->
+    <div class="stat-row" style="margin-top:14px">
+      <div class="stat-tile"><div class="st-icon">⏱</div><div class="st-val" id="an-focus">0h</div><div class="st-label">Focus Hours</div></div>
+      <div class="stat-tile"><div class="st-icon sticker"><svg class="line-icon"><use href="#icon-check-circle"></use></svg></div><div class="st-val" id="an-tasks">0%</div><div class="st-label">Task Rate</div></div>
+      <div class="stat-tile"><div class="st-icon sticker"><svg class="line-icon"><use href="#icon-ribbon"></use></svg></div><div class="st-val" id="an-habits">0</div><div class="st-label">Habits</div></div>
+      <div class="stat-tile"><div class="st-icon sticker"><svg class="line-icon"><use href="#icon-bell"></use></svg></div><div class="st-val" id="an-asgmts">0</div><div class="st-label">Due Soon</div></div>
+    </div>
+
+    <!-- Focus chart -->
+    <div class="card"><div class="section-title" style="margin-bottom:12px">Daily Focus</div><div class="chart-wrap"><canvas id="focus-chart"></canvas></div></div>
+
+    <!-- Tasks chart -->
+    <div class="card"><div class="section-title" style="margin-bottom:12px">Task Status</div><div class="chart-wrap"><canvas id="task-chart"></canvas></div></div>
+
+    <!-- Expenses chart -->
+    <div class="card"><div class="section-title" style="margin-bottom:12px">Spending</div><div class="chart-wrap"><canvas id="exp-chart"></canvas></div></div>
+
+    <!-- Habit streaks -->
+    <div class="card">
+      <div class="section-title" style="margin-bottom:12px"><svg class="line-icon" style="width:18px"><use href="#icon-zap"></use></svg> Habit Streaks</div>
+      <div id="habit-streaks"></div>
+    </div>
+
+  </main>
+</div>
+
+<div class="toast-container" id="toast-container"></div>
+<script src="js/icons.js"></script>
+<script src="js/auth-guard.js"></script>
+<script src="js/app.js"></script>
+<script src="js/clock-nav.js"></script>
+<script src="js/analytics.js"></script>
+<script>
+  document.addEventListener('DOMContentLoaded', () => { initApp(); loadAnalytics('week'); });
+</script>
+</body>
+</html>
+
+
+

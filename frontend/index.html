@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
+  <meta name="theme-color" content="#0d0d18"/>
+  <meta name="apple-mobile-web-app-capable" content="yes"/>
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+  <title>Persona</title>
+  <link rel="stylesheet" href="css/style.css"/>
+  <link rel="manifest" href="manifest.json"/>
+</head>
+<body>
+<div class="app-shell">
+
+  <!-- Header -->
+  <header class="app-header">
+    <div>
+      <div class="greeting-hello" id="greeting-text">Good morning! ☀️</div>
+      <div class="greeting-date"  id="greeting-date"></div>
+    </div>
+    <div class="header-right">
+      <div class="icon-btn" id="user-avatar-btn" title="Profile">S</div>
+    </div>
+  </header>
+
+  <!-- Page content — widgets live here -->
+  <main class="page-content">
+
+    <!-- ── Widget: Stats ──────────────────────────── -->
+    <div class="home-widget" data-widget-id="stats">
+      <div class="stat-row">
+        <div class="stat-tile">
+          <div class="st-icon sticker"><svg class="line-icon"><use href="#icon-list"></use></svg></div>
+          <div class="st-val" id="tasks-today">–</div>
+          <div class="st-label">Tasks Today</div>
+        </div>
+        <div class="stat-tile">
+          <div class="st-icon sticker"><svg class="line-icon"><use href="#icon-clock"></use></svg></div>
+          <div class="st-val" id="focus-hours">–</div>
+          <div class="st-label">Focus Hours</div>
+        </div>
+        <div class="stat-tile">
+          <div class="st-icon sticker"><svg class="line-icon"><use href="#icon-bell"></use></svg></div>
+          <div class="st-val" id="due-week">–</div>
+          <div class="st-label">Due This Week</div>
+        </div>
+        <div class="stat-tile">
+          <div class="st-icon sticker"><svg class="line-icon"><use href="#icon-ribbon"></use></svg></div>
+          <div class="st-val" id="productivity-score">–</div>
+          <div class="st-label">Score</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Widget: Focus Timer ────────────────────── -->
+    <div class="home-widget" data-widget-id="focus-timer">
+      <div class="card">
+        <div class="timer-pills">
+          <button class="timer-pill active" id="pill-focus" onclick="setTimerMode('focus',this)">Focus 25m</button>
+          <button class="timer-pill" id="pill-short"  onclick="setTimerMode('short',this)">Short 5m</button>
+          <button class="timer-pill" id="pill-long"   onclick="setTimerMode('long',this)">Long 15m</button>
+        </div>
+
+        <div class="focus-ring-wrap">
+          <div class="focus-ring-svg" style="position:relative;width:170px;height:170px">
+            <svg width="170" height="170" viewBox="0 0 170 170">
+              <circle class="ring-bg"   cx="85" cy="85" r="72" fill="none" stroke-width="10"/>
+              <circle class="ring-fill" cx="85" cy="85" r="72" fill="none" stroke-width="10"
+                id="timer-circle"
+                stroke-dasharray="452.4" stroke-dashoffset="0"/>
+            </svg>
+            <div class="ring-center">
+              <div class="ring-time"  id="timer-display">25:00</div>
+              <div class="ring-label" id="timer-mode-label">Focus</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="timer-controls">
+          <button class="btn-timer btn-timer-primary"   id="timer-btn" onclick="toggleTimer()">▶ Start</button>
+          <button class="btn-timer btn-timer-secondary" onclick="resetTimer()">↺ Reset</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Widget: Today's Tasks ──────────────────── -->
+    <div class="home-widget" data-widget-id="tasks">
+      <div class="section-head">
+        <span class="section-title"><svg class="line-icon" style="width:18px;height:18px;stroke-width:3px;margin-bottom:-3px"><use href="#icon-list"></use></svg> Today's Tasks</span>
+        <a href="/planner" class="section-link">View all →</a>
+      </div>
+      <div class="card card-sm" id="tasks-container">
+        <div class="empty-state" style="padding:20px 0">
+          <div class="empty-icon sticker sticker-md"><svg class="line-icon"><use href="#icon-list"></use></svg></div>
+          <h3>No tasks today</h3>
+          <p>Tap + to add a task</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Widget: Habits ─────────────────────────── -->
+    <div class="home-widget" data-widget-id="habits">
+      <div class="section-head">
+        <span class="section-title"><svg class="line-icon" style="width:18px;height:18px;stroke-width:3px;margin-bottom:-3px"><use href="#icon-ribbon"></use></svg> Habits</span>
+        <a href="/habits" class="section-link">All →</a>
+      </div>
+      <div class="card card-sm" id="habits-container">
+        <div class="empty-state" style="padding:16px 0">
+          <div class="empty-icon sticker sticker-sm"><svg class="line-icon"><use href="#icon-ribbon"></use></svg></div>
+          <p>No habits yet — <a href="/habits" style="color:var(--accent-light)">add one!</a></p>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Widget: Due Soon ───────────────────────── -->
+    <div class="home-widget" data-widget-id="assignments">
+      <div class="section-head">
+        <span class="section-title"><svg class="line-icon" style="width:18px;height:18px;stroke-width:3px;margin-bottom:-3px"><use href="#icon-bell"></use></svg> Due Soon</span>
+        <a href="/assignments" class="section-link">All →</a>
+      </div>
+      <div id="assignments-container">
+        <div class="card card-sm" style="color:var(--text-muted);font-size:13px;text-align:center;padding:20px">No pending assignments</div>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- FAB kept in HTML so legacy scripts don't break, hidden via CSS -->
+  <button class="fab" id="fab" onclick="toggleFAB()" title="Add Task" style="display:none">+</button>
+
+  <!-- AI chat bubble -->
+  <div class="ai-bubble">
+    <div class="ai-peek" id="ai-peek">
+      <div class="ai-peek-title"><svg class="line-icon" style="width:16px;margin-bottom:-3px"><use href="#icon-bot"></use></svg> Persona AI</div>
+      <div class="ai-response" id="ai-response-text">Tap below to let AI schedule your day!</div>
+      <div class="ai-actions">
+        <button class="ai-action-btn" onclick="aiScheduleDay()"><svg class="line-icon" style="width:14px;height:14px"><use href="#icon-zap"></use></svg> Schedule My Day</button>
+        <button class="ai-action-btn" onclick="hideAI()"><svg class="line-icon" style="width:14px;height:14px"><use href="#icon-x"></use></svg> Close</button>
+      </div>
+    </div>
+    <button class="ai-btn sticker" onclick="toggleAI()" title="AI Assistant">
+      <svg class="line-icon" style="stroke: #fff"><use href="#icon-globe"></use></svg>
+    </button>
+  </div>
+
+</div><!-- /.app-shell -->
+
+<!-- Add Task Sheet -->
+<div class="sheet-backdrop" id="task-backdrop" onclick="closeFAB()"></div>
+<div class="bottom-sheet" id="task-sheet">
+  <div class="sheet-handle"></div>
+  <div class="sheet-header">
+    <span class="sheet-title"><svg class="line-icon" style="width:18px"><use href="#icon-edit"></use></svg> New Task</span>
+    <button class="sheet-close" onclick="closeFAB()"><svg class="line-icon" style="width:20px"><use href="#icon-x"></use></svg></button>
+  </div>
+  <div class="sheet-body">
+    <div class="form-group">
+      <label>Title *</label>
+      <input type="text" id="task-title" placeholder="What needs to be done?"/>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Priority</label>
+        <select id="task-priority">
+          <option value="medium">Medium</option>
+          <option value="high">High</option>
+          <option value="low">Low</option>
+          <option value="urgent">Urgent</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Due</label>
+        <input type="date" id="task-due"/>
+      </div>
+    </div>
+    <div class="form-group">
+      <label>Description</label>
+      <textarea id="task-desc" placeholder="Optional details…"></textarea>
+    </div>
+  </div>
+  <div class="sheet-footer">
+    <button class="btn btn-secondary" onclick="closeFAB()">Cancel</button>
+    <button class="btn btn-primary"   onclick="quickAddTask()"><svg class="line-icon" style="width:18px"><use href="#icon-check"></use></svg> Add Task</button>
+  </div>
+</div>
+
+<div class="toast-container" id="toast-container"></div>
+
+<!-- Scripts -->
+<script src="js/auth-guard.js"></script>
+<script src="js/app.js"></script>
+<script src="js/focus_timer.js"></script>
+<script src="js/clock-nav.js"></script>
+<script src="js/home-grid.js"></script>
+
+<script>
+let fabOpen = false, aiOpen = false;
+
+document.addEventListener('DOMContentLoaded', async () => {
+  initApp();
+  setGreeting();
+  loadDashboard();
+});
+
+function setGreeting() {
+  const h = new Date().getHours();
+  const greet = h < 12 ? 'Good morning!' : h < 17 ? 'Good afternoon!' : 'Good evening!';
+  document.getElementById('greeting-text').textContent = greet;
+  document.getElementById('greeting-date').textContent =
+    new Date().toLocaleDateString('en-IN', { weekday:'long', day:'numeric', month:'long' });
+}
+
+async function loadDashboard() {
+  try {
+    const [tasks, analytics, habits, assignments] = await Promise.allSettled([
+      API.get('/tasks/?date=' + new Date().toISOString().slice(0,10)),
+      API.get('/analytics/?period=week'),
+      API.get('/habits/'),
+      API.get('/assignments/?status=pending'),
+    ]);
+    if (tasks.value)       renderTodayTasks(tasks.value);
+    if (analytics.value)   updateStats(analytics.value);
+    if (habits.value)      renderHabits(habits.value);
+    if (assignments.value) renderAssignments(assignments.value);
+  } catch (_) {}
+}
+
+function updateStats(d) {
+  document.getElementById('focus-hours').textContent        = (d.focus?.total_hours || 0) + 'h';
+  document.getElementById('productivity-score').textContent = (d.productivity_score || 0) + '%';
+}
+
+function renderTodayTasks(tasks) {
+  document.getElementById('tasks-today').textContent = tasks.length;
+  const el = document.getElementById('tasks-container');
+  if (!tasks.length) return;
+  el.innerHTML = tasks.map(t => `
+    <div class="task-item ${t.status==='completed'?'done':''}" id="ti-${t.id}">
+      <div class="task-check" onclick="completeTask('${t.id}',this)">${t.status==='completed'?'<svg class="line-icon" style="width:14px;height:14px;stroke-width:3px"><use href="#icon-check"></use></svg>':''}</div>
+      <div class="task-body">
+        <div class="task-title-text">${esc(t.title)}</div>
+        <div class="task-meta-row">
+          <span class="task-time">${t.start_time ? fmtTime(t.start_time) : '<svg class="line-icon" style="width:12px;height:12px;margin-bottom:-2px"><use href="#icon-zap"></use></svg> AI scheduled'}</span>
+          <span class="badge badge-${t.priority}">${t.priority}</span>
+        </div>
+      </div>
+      <button class="task-swipe-del" onclick="delTask('${t.id}')"><svg class="line-icon" style="width:18px"><use href="#icon-trash"></use></svg></button>
+    </div>`).join('');
+}
+
+function renderHabits(habits) {
+  document.getElementById('due-week').textContent = habits.filter(h=>!h.done_today).length + ' left';
+  const el = document.getElementById('habits-container');
+  if (!habits.length) return;
+  el.innerHTML = habits.slice(0,4).map(h => `
+    <div class="habit-row">
+      <div class="habit-icon sticker">${h.icon && h.icon.includes('<svg') ? h.icon : '<svg class="line-icon"><use href="#icon-ribbon"></use></svg>'}</div>
+      <div class="habit-info">
+        <div class="habit-name">${esc(h.name)}</div>
+        <div class="habit-streak"><svg class="line-icon" style="width:14px;height:14px;margin-bottom:-2px;stroke:var(--amber)"><use href="#icon-zap"></use></svg> ${h.streak} day streak</div>
+      </div>
+      <div class="habit-toggle ${h.done_today?'on':''}" id="ht-${h.id}" onclick="toggleHabitDash('${h.id}',this)"></div>
+    </div>`).join('');
+}
+
+function renderAssignments(assgmts) {
+  const el = document.getElementById('assignments-container');
+  if (!assgmts.length) return;
+  const urgency = a => new Date(a.due_date) - new Date();
+  const sorted  = assgmts.filter(a=>a.due_date).sort((a,b)=>urgency(a)-urgency(b));
+  el.innerHTML = sorted.slice(0,3).map(a => {
+    const diff = Math.ceil((new Date(a.due_date)-new Date())/(1000*60*60*24));
+    return `<div class="asgmt-card" onclick="window.location='/assignments'">
+      <div class="asgmt-dot" style="background:${diff<=1?'var(--red)':diff<=3?'var(--amber)':'var(--green)'}"></div>
+      <div>
+        <div class="asgmt-title">${esc(a.title)}</div>
+        <div class="asgmt-course">${esc(a.course_name)}</div>
+        <div class="asgmt-due">Due ${diff<=0?'Today':diff===1?'Tomorrow':'in '+diff+' days'}</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+/* ── FAB (Add Task sheet) ───────────────────────── */
+function toggleFAB() {
+  fabOpen = !fabOpen;
+  document.getElementById('task-sheet').classList.toggle('show', fabOpen);
+  document.getElementById('task-backdrop').classList.toggle('show', fabOpen);
+  if (fabOpen) setTimeout(() => document.getElementById('task-title').focus(), 350);
+}
+function closeFAB() {
+  fabOpen = false;
+  document.getElementById('task-sheet').classList.remove('show');
+  document.getElementById('task-backdrop').classList.remove('show');
+}
+
+async function quickAddTask() {
+  const title = document.getElementById('task-title').value.trim();
+  if (!title) { showToast('error','Error','Title is required'); return; }
+  try {
+    await API.post('/tasks/', {
+      title,
+      priority:    document.getElementById('task-priority').value,
+      description: document.getElementById('task-desc').value,
+      due_date:    document.getElementById('task-due').value,
+    });
+    closeFAB();
+    showToast('success','Task Added!','Your task has been saved');
+    loadDashboard();
+  } catch(e) { showToast('error','Error',e.message); }
+}
+
+async function toggleHabitDash(id, el) {
+  try {
+    const res = await API.patch('/habits/'+id+'/check', {});
+    el.classList.toggle('on', res.done_today);
+    if (res.done_today) showToast('success','Streak!', `${res.streak} day streak!`);
+  } catch(e) { showToast('error','Error',e.message); }
+}
+
+async function completeTask(id, checkEl) {
+  await API.patch('/tasks/'+id+'/complete', {});
+  checkEl.innerHTML = '<svg class="line-icon" style="width:14px;height:14px;stroke-width:3px"><use href="#icon-check"></use></svg>';
+  checkEl.closest('.task-item').classList.add('done');
+  showToast('success','Done!','Task completed');
+}
+async function delTask(id) {
+  await API.del('/tasks/'+id);
+  document.getElementById('ti-'+id)?.remove();
+  showToast('info','Deleted','Task removed');
+}
+
+/* ── AI bubble ─────────────────────────────────── */
+function toggleAI() {
+  aiOpen = !aiOpen;
+  document.getElementById('ai-peek').classList.toggle('show', aiOpen);
+}
+function hideAI() {
+  aiOpen = false;
+  document.getElementById('ai-peek').classList.remove('show');
+}
+async function aiScheduleDay() {
+  const txt = document.getElementById('ai-response-text');
+  txt.className = 'ai-response loading';
+  txt.textContent = 'Thinking about your schedule…';
+  try {
+    const res = await API.post('/ai/schedule', { message: 'Schedule my day based on my pending tasks' });
+    txt.className = 'ai-response';
+    txt.textContent = res.explanation || res.message || 'Done! Check your planner.';
+    showToast('success','AI Scheduled!','Your day has been planned');
+    loadDashboard();
+  } catch(e) {
+    txt.className = 'ai-response';
+    txt.textContent = 'Could not reach AI — add your GEMINI_API_KEY to .env';
+  }
+}
+
+function fmtTime(iso) {
+  return iso ? new Date(iso).toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'}) : '';
+}
+</script>
+</body>
+</html>
+

@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover"/>
+  <meta name="theme-color" content="#0d0d18"/>
+  <title>Persona — Assignments</title>
+  <link rel="stylesheet" href="css/style.css"/>
+  <link rel="manifest" href="manifest.json"/>
+</head>
+<body>
+<div class="app-shell">
+  <header class="app-header">
+    <div>
+      <div class="header-title"><svg class="line-icon" style="width:22px;height:22px"><use href="#icon-bell"></use></svg> Assignments</div>
+      <div class="header-subtitle">Track deadlines</div>
+    </div>
+    <div class="header-right">
+      <button class="icon-btn" onclick="syncClassroom()" title="Sync Google Classroom"><svg class="line-icon" style="width:18px"><use href="#icon-sync"></use></svg></button>
+    </div>
+  </header>
+
+  <main class="page-content">
+    <!-- Stats row -->
+    <div class="stat-row">
+      <div class="stat-tile"><div class="st-icon sticker"><svg class="line-icon"><use href="#icon-list"></use></svg></div><div class="st-val" id="a-total">0</div><div class="st-label">Total</div></div>
+      <div class="stat-tile"><div class="st-icon sticker"><svg class="line-icon"><use href="#icon-clock"></use></svg></div><div class="st-val" id="a-pending">0</div><div class="st-label">Pending</div></div>
+      <div class="stat-tile"><div class="st-icon sticker"><svg class="line-icon"><use href="#icon-check-circle"></use></svg></div><div class="st-val" id="a-submitted">0</div><div class="st-label">Done</div></div>
+      <div class="stat-tile"><div class="st-icon sticker"><svg class="line-icon"><use href="#icon-alert"></use></svg></div><div class="st-val" id="a-late">0</div><div class="st-label">Late</div></div>
+    </div>
+
+    <!-- Filter -->
+    <div class="tab-pills">
+      <button class="tab-pill active" onclick="filterA('',this)">All</button>
+      <button class="tab-pill" onclick="filterA('pending',this)">Pending</button>
+      <button class="tab-pill" onclick="filterA('submitted',this)">Submitted</button>
+      <button class="tab-pill" onclick="filterA('late',this)">Late</button>
+    </div>
+
+    <!-- Search -->
+    <div class="search-bar">
+      <span class="search-icon">🔍</span>
+      <input type="text" id="search-a" placeholder="Search assignments…" oninput="renderAssignments()"/>
+    </div>
+
+    <!-- List -->
+    <div id="asgmt-list"></div>
+  </main>
+
+  <button class="fab" id="fab" onclick="toggleFAB()">+</button>
+</div>
+
+<!-- Add Sheet -->
+<div class="sheet-backdrop" id="backdrop" onclick="closeFAB()"></div>
+<div class="bottom-sheet" id="sheet">
+  <div class="sheet-handle"></div>
+  <div class="sheet-header">
+    <span class="sheet-title" id="sheet-title"><svg class="line-icon" style="width:18px"><use href="#icon-edit"></use></svg> New Assignment</span>
+    <button class="sheet-close" onclick="closeFAB()"><svg class="line-icon" style="width:20px"><use href="#icon-x"></use></svg></button>
+  </div>
+  <div class="sheet-body">
+    <input type="hidden" id="edit-id"/>
+    <div class="form-group"><label>Course *</label><input type="text" id="a-course" placeholder="e.g. Mathematics"/></div>
+    <div class="form-group"><label>Title *</label><input type="text" id="a-title" placeholder="Assignment title"/></div>
+    <div class="form-group"><label>Description</label><textarea id="a-desc" placeholder="Details…"></textarea></div>
+    <div class="form-row">
+      <div class="form-group"><label>Due Date</label><input type="datetime-local" id="a-due"/></div>
+      <div class="form-group"><label>Status</label>
+        <select id="a-status">
+          <option value="pending">Pending</option>
+          <option value="submitted">Submitted</option>
+          <option value="late">Late</option>
+          <option value="graded">Graded</option>
+        </select>
+      </div>
+    </div>
+  </div>
+  <div class="sheet-footer">
+    <button class="btn btn-secondary" onclick="closeFAB()">Cancel</button>
+    <button class="btn btn-primary" onclick="saveAssignment()">✓ Save</button>
+  </div>
+</div>
+
+<div class="toast-container" id="toast-container"></div>
+<script src="js/icons.js"></script>
+<script src="js/auth-guard.js"></script>
+<script src="js/app.js"></script>
+<script src="js/clock-nav.js"></script>
+<script>
+let allA = [], currentFilter = '';
+let fabOpen = false;
+
+document.addEventListener('DOMContentLoaded', () => { initApp(); loadAssignments(); });
+
+async function loadAssignments() {
+  allA = await API.get('/assignments/');
+  document.getElementById('a-total').textContent     = allA.length;
+  document.getElementById('a-pending').textContent   = allA.filter(a=>a.status==='pending').length;
+  document.getElementById('a-submitted').textContent = allA.filter(a=>a.status==='submitted').length;
+  document.getElementById('a-late').textContent      = allA.filter(a=>a.status==='late').length;
+  renderAssignments();
+}
+
+function filterA(status, btn) {
+  currentFilter = status;
+  document.querySelectorAll('.tab-pill').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  renderAssignments();
+}
+
+function renderAssignments() {
+  const q = (document.getElementById('search-a').value||'').toLowerCase();
+  let list = currentFilter ? allA.filter(a=>a.status===currentFilter) : allA;
+  if (q) list = list.filter(a=>(a.title+a.course_name).toLowerCase().includes(q));
+  const el = document.getElementById('asgmt-list');
+  if (!list.length) { el.innerHTML = `<div class="empty-state"><div class="empty-icon sticker sticker-lg"><svg class="line-icon"><use href="#icon-bell"></use></svg></div><h3>Nothing here</h3></div>`; return; }
+  el.innerHTML = list.map(a => {
+    const diff = a.due_date ? Math.ceil((new Date(a.due_date)-new Date())/(86400000)) : null;
+    return `<div class="asgmt-card" onclick="editAssignment(${JSON.stringify(a).replace(/"/g,'&quot;')})">
+      <div class="asgmt-dot" style="background:${diff===null?'var(--teal)':diff<=0?'var(--red)':diff<=2?'var(--amber)':'var(--green)'}"></div>
+      <div style="flex:1">
+        <div class="asgmt-title">${esc(a.title)}</div>
+        <div class="asgmt-course"><svg class="line-icon" style="width:12px;height:12px;margin-bottom:-1px"><use href="#icon-book"></use></svg> ${esc(a.course_name)}</div>
+        <div style="display:flex;gap:8px;align-items:center;margin-top:6px">
+          <span class="badge badge-${a.status}">${a.status}</span>
+          ${a.due_date ? `<span class="asgmt-due">${diff===0?'Due today':diff<0?'Overdue':'Due in '+diff+'d'}</span>` : ''}
+        </div>
+      </div>
+      ${a.status==='pending'?`<button class="btn btn-success btn-sm" onclick="event.stopPropagation();submitA('${a.id}')"><svg class="line-icon" style="width:14px;height:14px;stroke-width:3px"><use href="#icon-check"></use></svg></button>`:''}
+    </div>`;
+  }).join('');
+}
+
+function editAssignment(a) {
+  document.getElementById('edit-id').value   = a.id;
+  document.getElementById('a-course').value  = a.course_name;
+  document.getElementById('a-title').value   = a.title;
+  document.getElementById('a-desc').value    = a.description||'';
+  document.getElementById('a-due').value     = a.due_date?a.due_date.replace(' ','T').slice(0,16):'';
+  document.getElementById('a-status').value  = a.status;
+  document.getElementById('sheet-title').innerHTML = '<svg class="line-icon" style="width:18px"><use href="#icon-edit"></use></svg> Edit Assignment';
+  toggleFAB();
+}
+
+async function saveAssignment() {
+  const id = document.getElementById('edit-id').value;
+  const p  = { course_name:document.getElementById('a-course').value, title:document.getElementById('a-title').value,
+                description:document.getElementById('a-desc').value, due_date:document.getElementById('a-due').value,
+                status:document.getElementById('a-status').value };
+  if (!p.title||!p.course_name) { showToast('error','Error','Course and title required'); return; }
+  if (id) await API.put('/assignments/'+id, p); else await API.post('/assignments/', p);
+  closeFAB(); showToast('success','Saved!',''); loadAssignments();
+}
+
+async function submitA(id) {
+  await API.put('/assignments/'+id, {status:'submitted'});
+  showToast('success','Submitted! 🎉',''); loadAssignments();
+}
+
+async function syncClassroom() {
+  showToast('info','Syncing…','Connecting to Google Classroom');
+  try { const r = await API.post('/assignments/sync/classroom',{}); showToast('success','Synced!',r.message); loadAssignments(); }
+  catch(_) { showToast('error','Failed','Connect Google Classroom first'); }
+}
+
+function toggleFAB() {
+  fabOpen = !fabOpen;
+  if (!fabOpen) { document.getElementById('edit-id').value=''; document.getElementById('sheet-title').innerHTML='<svg class="line-icon" style="width:18px"><use href="#icon-edit"></use></svg> New Assignment'; ['a-course','a-title','a-desc','a-due'].forEach(id=>document.getElementById(id).value=''); }
+  document.getElementById('fab').classList.toggle('open',fabOpen);
+  document.getElementById('sheet').classList.toggle('show',fabOpen);
+  document.getElementById('backdrop').classList.toggle('show',fabOpen);
+}
+function closeFAB() { fabOpen=true; toggleFAB(); }
+</script>
+</body>
+</html>
+
+
+

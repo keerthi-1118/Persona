@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover"/>
+  <meta name="theme-color" content="#0d0d18"/>
+  <title>Persona — Habits</title>
+  <link rel="stylesheet" href="css/style.css"/>
+  <link rel="manifest" href="manifest.json"/>
+</head>
+<body>
+<div class="app-shell">
+  <header class="app-header">
+    <div>
+      <div class="header-title"><svg class="line-icon" style="width:22px;height:22px"><use href="#icon-ribbon"></use></svg> Habits</div>
+      <div class="header-subtitle">Build consistency every day</div>
+    </div>
+    <div class="header-right">
+      <div class="header-subtitle" id="habit-progress-label" style="color:var(--accent-light);font-weight:700;font-size:15px">0/0</div>
+    </div>
+  </header>
+
+  <main class="page-content">
+    <!-- Stats -->
+    <div class="stat-row">
+      <div class="stat-tile"><div class="st-icon sticker"><svg class="line-icon"><use href="#icon-ribbon"></use></svg></div><div class="st-val" id="h-total">0</div><div class="st-label">Habits</div></div>
+      <div class="stat-tile"><div class="st-icon sticker"><svg class="line-icon"><use href="#icon-check-circle"></use></svg></div><div class="st-val" id="h-done">0</div><div class="st-label">Done Today</div></div>
+      <div class="stat-tile" style="grid-column:1/-1">
+        <div class="st-label" style="margin-bottom:8px">Today's Progress</div>
+        <div class="progress-track"><div class="progress-fill" id="h-progress-bar" style="width:0%"></div></div>
+      </div>
+    </div>
+
+    <!-- Habit list -->
+    <div class="section-title" style="margin-bottom:10px">Your Habits</div>
+    <div class="card card-sm" id="habit-list">
+      <div class="empty-state" style="padding:20px 0">
+        <div class="empty-icon sticker sticker-lg"><svg class="line-icon"><use href="#icon-ribbon"></use></svg></div>
+        <h3>No habits yet</h3>
+        <p>Start building good habits today</p>
+      </div>
+    </div>
+  </main>
+
+  <button class="fab" id="fab" onclick="toggleFAB()">+</button>
+</div>
+
+<!-- Add Habit Sheet -->
+<div class="sheet-backdrop" id="backdrop" onclick="closeFAB()"></div>
+<div class="bottom-sheet" id="sheet">
+  <div class="sheet-handle"></div>
+  <div class="sheet-header">
+    <span class="sheet-title"><svg class="line-icon" style="width:18px"><use href="#icon-plus"></use></svg> New Habit</span>
+    <button class="sheet-close" onclick="closeFAB()"><svg class="line-icon" style="width:20px"><use href="#icon-x"></use></svg></button>
+  </div>
+  <div class="sheet-body">
+    <div class="form-group"><label>Habit Name *</label><input type="text" id="habit-name" placeholder="e.g. Morning Exercise"/></div>
+    <div class="form-row">
+      <div class="form-group"><label>Emoji</label><input type="text" id="habit-icon" value="⭐" maxlength="2" style="font-size:24px;text-align:center"/></div>
+      <div class="form-group"><label>Color</label><input type="color" id="habit-color" value="#7C6FFF"/></div>
+    </div>
+  </div>
+  <div class="sheet-footer">
+    <button class="btn btn-secondary" onclick="closeFAB()">Cancel</button>
+    <button class="btn btn-primary" onclick="addHabit()"><svg class="line-icon" style="width:18px"><use href="#icon-check"></use></svg> Add Habit</button>
+  </div>
+</div>
+
+<div class="toast-container" id="toast-container"></div>
+<script src="js/icons.js"></script>
+<script src="js/auth-guard.js"></script>
+<script src="js/app.js"></script>
+<script src="js/clock-nav.js"></script>
+<script src="js/habits.js"></script>
+<script>
+  let fabOpen = false;
+  function toggleFAB() {
+    fabOpen = !fabOpen;
+    document.getElementById('fab').classList.toggle('open',fabOpen);
+    document.getElementById('sheet').classList.toggle('show',fabOpen);
+    document.getElementById('backdrop').classList.toggle('show',fabOpen);
+  }
+  function closeFAB() { fabOpen = true; toggleFAB(); }
+  document.addEventListener('DOMContentLoaded', () => { initApp(); loadHabits(); });
+</script>
+</body>
+</html>
+
+
+

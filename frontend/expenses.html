@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover"/>
+  <meta name="theme-color" content="#0d0d18"/>
+  <title>Persona — Expenses</title>
+  <link rel="stylesheet" href="css/style.css"/>
+  <link rel="manifest" href="manifest.json"/>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
+</head>
+<body>
+<div class="app-shell">
+  <header class="app-header">
+    <div>
+      <div class="header-title"><svg class="line-icon" style="width:22px;height:22px"><use href="#icon-wallet"></use></svg> Expenses</div>
+      <div class="header-subtitle" id="exp-month-label">March 2026</div>
+    </div>
+    <div class="header-right">
+      <input type="month" id="month-picker" onchange="loadExpenses()"
+        style="background:var(--bg-glass2);border:1px solid var(--border);color:var(--text-primary);padding:6px 10px;border-radius:var(--radius-md);font-family:inherit;font-size:13px;-webkit-appearance:none;appearance:none;"/>
+    </div>
+  </header>
+
+  <main class="page-content">
+    <!-- Stats -->
+    <div class="stat-row" style="margin-bottom:20px;">
+      <div class="stat-tile">
+        <div class="st-icon sticker"><svg class="line-icon"><use href="#icon-dollar"></use></svg></div>
+        <div class="st-val" id="total-income" style="color:var(--green)">₹0</div>
+        <div class="st-label">Monthly Income</div>
+      </div>
+      <div class="stat-tile">
+        <div class="st-icon sticker"><svg class="line-icon"><use href="#icon-wallet"></use></svg></div>
+        <div class="st-val" id="total-spent">₹0</div>
+        <div class="st-label">Total Spent</div>
+      </div>
+      <div class="stat-tile" style="grid-column:1/-1">
+        <div class="st-icon sticker"><svg class="line-icon"><use href="#icon-chart"></use></svg></div>
+        <div class="st-val" id="total-remaining">₹0</div>
+        <div class="st-label">Remaining Balance</div>
+        
+        <!-- Income Progress Bar -->
+        <div style="margin-top:12px; height:8px; background:var(--bg-glass2); border-radius:4px; overflow:hidden;">
+          <div id="income-progress-bar" style="height:100%; width:0%; background:var(--accent-light); transition:width 0.4s ease;"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Chart -->
+    <div class="card">
+      <div class="section-title" style="margin-bottom:12px">Category Breakdown</div>
+      <div class="chart-wrap"><canvas id="cat-chart"></canvas></div>
+    </div>
+
+    <!-- Filter + list -->
+    <div class="section-head">
+      <span class="section-title">Transactions</span>
+      <select id="filter-cat" onchange="renderExpenses()"
+        style="width:auto;padding:6px 10px;font-size:12px;border-radius:var(--radius-md);background:var(--bg-glass2);border:1px solid var(--border);color:var(--text-primary)">
+        <option value="">All</option>
+        <option value="Income">Income</option>
+        <option value="food">Food</option>
+        <option value="transport">Transport</option>
+        <option value="books">Books</option>
+        <option value="entertainment">Entertainment</option>
+        <option value="health">Health</option>
+        <option value="shopping">Shopping</option>
+        <option value="other">Other</option>
+      </select>
+    </div>
+    <div class="card card-sm" id="expense-list"></div>
+    
+    <div style="text-align:center; margin-top:20px; color:var(--text-muted); font-size:11px;">
+      <p><svg class="line-icon" style="width:16px;margin-bottom:-3px;stroke:var(--amber)"><use href="#icon-alert"></use></svg> <b>Note on UPI reading</b>: Since Persona runs securely in your browser as a PWA, it cannot read background SMS or native UPI apps due to OS security sandboxing. Add transactions manually using the <b>+</b> button.</p>
+    </div>
+  </main>
+
+  <button class="fab" id="fab" onclick="toggleFAB()">+</button>
+</div>
+
+<!-- Add Expense Sheet -->
+<div class="sheet-backdrop" id="backdrop" onclick="closeFAB()"></div>
+<div class="bottom-sheet" id="sheet">
+  <div class="sheet-handle"></div>
+  <div class="sheet-header">
+    <span class="sheet-title"><svg class="line-icon" style="width:18px"><use href="#icon-plus"></use></svg> Add Expense</span>
+    <button class="sheet-close" onclick="closeFAB()"><svg class="line-icon" style="width:20px"><use href="#icon-x"></use></svg></button>
+  </div>
+  <div class="sheet-body">
+    <div class="form-row">
+      <div class="form-group"><label>Amount (₹) *</label><input type="number" id="exp-amount" placeholder="0.00" min="0" step="0.01"/></div>
+      <div class="form-group"><label>Category</label>
+        <select id="exp-cat">
+          <option value="Income">Income (Earned)</option>
+          <option value="food" selected>Food</option>
+          <option value="transport">Transport</option>
+          <option value="books">Books</option>
+          <option value="entertainment">Entertainment</option>
+          <option value="health">Health</option>
+          <option value="shopping">Shopping</option>
+          <option value="other">Other</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-group"><label>Description</label><input type="text" id="exp-desc" placeholder="e.g. Lunch at canteen"/></div>
+    <div class="form-group"><label>Date</label><input type="date" id="exp-date"/></div>
+  </div>
+  <div class="sheet-footer">
+    <button class="btn btn-secondary" onclick="closeFAB()">Cancel</button>
+    <button class="btn btn-primary" onclick="addExpense()"><svg class="line-icon" style="width:18px"><use href="#icon-check"></use></svg> Add</button>
+  </div>
+</div>
+
+<div class="toast-container" id="toast-container"></div>
+<script src="js/icons.js"></script>
+<script src="js/auth-guard.js"></script>
+<script src="js/app.js"></script>
+<script src="js/clock-nav.js"></script>
+<script src="js/expenses.js"></script>
+<script>
+  let fabOpen = false;
+  function toggleFAB() {
+    fabOpen = !fabOpen;
+    document.getElementById('fab').classList.toggle('open',fabOpen);
+    document.getElementById('sheet').classList.toggle('show',fabOpen);
+    document.getElementById('backdrop').classList.toggle('show',fabOpen);
+    if (fabOpen) document.getElementById('exp-amount').focus();
+  }
+  function closeFAB() { fabOpen = true; toggleFAB(); }
+
+  document.addEventListener('DOMContentLoaded', () => {
+    initApp();
+    document.getElementById('month-picker').value = new Date().toISOString().slice(0,7);
+    document.getElementById('exp-date').value = new Date().toISOString().slice(0,10);
+    document.getElementById('exp-month-label').textContent = new Date().toLocaleDateString('en-IN',{month:'long',year:'numeric'});
+    loadExpenses();
+  });
+</script>
+</body>
+</html>
+
+
+
