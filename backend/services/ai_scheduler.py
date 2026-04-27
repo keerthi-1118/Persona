@@ -12,7 +12,7 @@ def _generate_content(prompt: str) -> str:
     if not GEMINI_API_KEY:
         raise RuntimeError("GEMINI_API_KEY not set in .env file")
         
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={GEMINI_API_KEY}"
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={GEMINI_API_KEY}"
     payload = {
         "contents": [{"parts": [{"text": prompt}]}],
         "generationConfig": {"temperature": 0.7}
@@ -54,7 +54,9 @@ def schedule_tasks(tasks: list, existing_schedule: list, timetable: list) -> dic
     ])
 
     blocked_text = "\n".join([
-        f"- {b.get('day','?')} {b.get('start_time','?')}-{b.get('end_time','?')}: {b.get('subject','class')}"
+        f"- {b.get('day_of_week', b.get('day','?'))} "
+        f"{b.get('start_time','?')}-{b.get('end_time','?')}: "
+        f"{b.get('label', b.get('subject','class'))}"
         for b in timetable
     ]) or "No timetable set"
 

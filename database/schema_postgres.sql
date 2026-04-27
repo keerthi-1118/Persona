@@ -35,6 +35,15 @@ CREATE TABLE IF NOT EXISTS tasks (
     updated_at   TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- Task blocks (Dynamic AI focus sessions for multi-day tasks)
+CREATE TABLE IF NOT EXISTS task_blocks (
+    id           TEXT PRIMARY KEY DEFAULT gen_random_uuid()::TEXT,
+    task_id      TEXT NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
+    start_time   TIMESTAMPTZ NOT NULL,
+    end_time     TIMESTAMPTZ NOT NULL,
+    created_at   TIMESTAMPTZ DEFAULT NOW()
+);
+
 -- Assignments table
 CREATE TABLE IF NOT EXISTS assignments (
     id             TEXT PRIMARY KEY DEFAULT gen_random_uuid()::TEXT,

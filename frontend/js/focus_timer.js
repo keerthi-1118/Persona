@@ -23,7 +23,7 @@ function setTimerMode(mode, btn) {
   remaining   = MODES[mode].duration;
   document.querySelectorAll('#timer-btn').forEach(() => {});
   if (btn) {
-    btn.closest('.tabs')?.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    btn.closest('.timer-pills')?.querySelectorAll('.timer-pill').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
   }
   updateDisplay();

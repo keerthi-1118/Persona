@@ -19,7 +19,7 @@ def now_iso() -> str:
 
 TASK_PRIORITIES = {"low", "medium", "high", "urgent"}
 TASK_STATUSES   = {"pending", "in_progress", "completed", "cancelled"}
-EXPENSE_CATEGORIES = {"food", "transport", "books", "entertainment", "health", "shopping", "other"}
+EXPENSE_CATEGORIES = {"food", "transport", "books", "entertainment", "health", "shopping", "other", "Income"}
 
 
 def validate_task(data: dict) -> list[str]:

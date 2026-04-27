@@ -6,6 +6,10 @@
   <meta name="theme-color" content="#0d0d18"/>
   <meta name="apple-mobile-web-app-capable" content="yes"/>
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+  <!-- Prevent browser from caching this HTML page -->
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"/>
+  <meta http-equiv="Pragma" content="no-cache"/>
+  <meta http-equiv="Expires" content="0"/>
   <title>Persona</title>
   <link rel="stylesheet" href="css/style.css"/>
   <link rel="manifest" href="manifest.json"/>
@@ -86,15 +90,18 @@
 
     <!-- ── Widget: Today's Tasks ──────────────────── -->
     <div class="home-widget" data-widget-id="tasks">
-      <div class="section-head">
+      <div class="section-head" style="margin-bottom:12px; display:flex; justify-content:space-between; align-items:center;">
         <span class="section-title"><svg class="line-icon" style="width:18px;height:18px;stroke-width:3px;margin-bottom:-3px"><use href="#icon-list"></use></svg> Today's Tasks</span>
-        <a href="/planner" class="section-link">View all →</a>
+        <div style="display:flex; gap:12px; align-items:center;">
+          <button onclick="toggleFAB()" style="background:var(--accent); color:white; border:none; padding:6px 12px; border-radius:var(--radius-md); font-size:12px; cursor:pointer; font-weight:bold;">+ Add</button>
+          <a href="/planner" class="section-link">View all →</a>
+        </div>
       </div>
       <div class="card card-sm" id="tasks-container">
-        <div class="empty-state" style="padding:20px 0">
+        <div class="empty-state" style="padding:20px 0; cursor:pointer;" onclick="toggleFAB()">
           <div class="empty-icon sticker sticker-md"><svg class="line-icon"><use href="#icon-list"></use></svg></div>
           <h3>No tasks today</h3>
-          <p>Tap + to add a task</p>
+          <p>Tap to add a task</p>
         </div>
       </div>
     </div>
@@ -126,8 +133,7 @@
 
   </main>
 
-  <!-- FAB kept in HTML so legacy scripts don't break, hidden via CSS -->
-  <button class="fab" id="fab" onclick="toggleFAB()" title="Add Task" style="display:none">+</button>
+  <!-- FAB — removed per UX update (now uses small + Add button) -->
 
   <!-- AI chat bubble -->
   <div class="ai-bubble">
@@ -145,6 +151,8 @@
   </div>
 
 </div><!-- /.app-shell -->
+
+<!-- Floating Add Task Button (removed per UX update) -->
 
 <!-- Add Task Sheet -->
 <div class="sheet-backdrop" id="task-backdrop" onclick="closeFAB()"></div>
@@ -188,8 +196,10 @@
 <div class="toast-container" id="toast-container"></div>
 
 <!-- Scripts -->
+<script src="js/icons.js"></script>
 <script src="js/auth-guard.js"></script>
 <script src="js/app.js"></script>
+<script src="js/notifications.js"></script>
 <script src="js/focus_timer.js"></script>
 <script src="js/clock-nav.js"></script>
 <script src="js/home-grid.js"></script>
@@ -234,7 +244,14 @@ function updateStats(d) {
 function renderTodayTasks(tasks) {
   document.getElementById('tasks-today').textContent = tasks.length;
   const el = document.getElementById('tasks-container');
-  if (!tasks.length) return;
+  if (!tasks.length) {
+    el.innerHTML = `<div class="empty-state" style="padding:20px 0; cursor:pointer;" onclick="toggleFAB()">
+      <div class="empty-icon sticker sticker-md"><svg class="line-icon"><use href="#icon-list"></use></svg></div>
+      <h3>No tasks today</h3>
+      <p>Tap to add a task</p>
+    </div>`;
+    return;
+  }
   el.innerHTML = tasks.map(t => `
     <div class="task-item ${t.status==='completed'?'done':''}" id="ti-${t.id}">
       <div class="task-check" onclick="completeTask('${t.id}',this)">${t.status==='completed'?'<svg class="line-icon" style="width:14px;height:14px;stroke-width:3px"><use href="#icon-check"></use></svg>':''}</div>
@@ -285,12 +302,27 @@ function renderAssignments(assgmts) {
 /* ── FAB (Add Task sheet) ───────────────────────── */
 function toggleFAB() {
   fabOpen = !fabOpen;
+  if (fabOpen) {
+    // Reset form to blank for new task
+    ['task-title','task-desc'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.value = '';
+    });
+    const p = document.getElementById('task-priority');
+    const d = document.getElementById('task-due');
+    if (p) p.value = 'medium';
+    if (d) d.value = '';
+    setTimeout(() => document.getElementById('task-title')?.focus(), 350);
+  }
+  const homeBtn = document.getElementById('home-add-fab');
+  if (homeBtn) homeBtn.style.transform = fabOpen ? 'scale(0.85) rotate(45deg)' : '';
   document.getElementById('task-sheet').classList.toggle('show', fabOpen);
   document.getElementById('task-backdrop').classList.toggle('show', fabOpen);
-  if (fabOpen) setTimeout(() => document.getElementById('task-title').focus(), 350);
 }
 function closeFAB() {
   fabOpen = false;
+  const homeBtn = document.getElementById('home-add-fab');
+  if (homeBtn) homeBtn.style.transform = '';
   document.getElementById('task-sheet').classList.remove('show');
   document.getElementById('task-backdrop').classList.remove('show');
 }

@@ -54,10 +54,12 @@
     </div>
 
     <!-- Filter + list -->
-    <div class="section-head">
+    <div class="section-head" style="display: flex; justify-content: space-between; align-items: center; margin-top: 20px;">
       <span class="section-title">Transactions</span>
-      <select id="filter-cat" onchange="renderExpenses()"
-        style="width:auto;padding:6px 10px;font-size:12px;border-radius:var(--radius-md);background:var(--bg-glass2);border:1px solid var(--border);color:var(--text-primary)">
+      <div style="display: flex; gap: 8px;">
+        <button onclick="toggleFAB()" style="background:var(--accent); color:white; border:none; padding:6px 12px; border-radius:var(--radius-md); font-size:12px; cursor:pointer; font-weight:bold;">+ Add</button>
+        <select id="filter-cat" onchange="renderExpenses()"
+          style="width:auto;padding:6px 10px;font-size:12px;border-radius:var(--radius-md);background:var(--bg-glass2);border:1px solid var(--border);color:var(--text-primary)">
         <option value="">All</option>
         <option value="Income">Income</option>
         <option value="food">Food</option>
@@ -67,7 +69,8 @@
         <option value="health">Health</option>
         <option value="shopping">Shopping</option>
         <option value="other">Other</option>
-      </select>
+        </select>
+      </div>
     </div>
     <div class="card card-sm" id="expense-list"></div>
     

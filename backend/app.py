@@ -37,6 +37,8 @@ def create_app():
     from routes.focus       import focus_bp
     from routes.ai_chat     import ai_bp
     from routes.timetable   import timetable_bp
+    from routes.push        import push_bp
+    from routes.planner     import planner_bp
 
     app.register_blueprint(auth_bp,        url_prefix="/api/auth")
     app.register_blueprint(tasks_bp,       url_prefix="/api/tasks")
@@ -49,26 +51,53 @@ def create_app():
     app.register_blueprint(focus_bp,       url_prefix="/api/focus")
     app.register_blueprint(ai_bp,          url_prefix="/api/ai")
     app.register_blueprint(timetable_bp,   url_prefix="/api/timetable")
+    app.register_blueprint(push_bp,        url_prefix="/api/push")
+    app.register_blueprint(planner_bp,     url_prefix="/api/planner")
 
     # ── Health check ──────────────────────────────────────────
     @app.route("/api/health")
     def health():
         return {"status": "ok", "app": "Persona PWA"}
 
-    # ── Serve Frontend ────────────────────────────────────────
+    # ── Serve Frontend ─────────────────────────────────────────
+    # HTML pages: no-cache so browsers always get latest code.
+    # Static assets (CSS/JS/images): 1-week cache with must-revalidate.
+    from flask import make_response
+
     @app.route("/")
     def index():
-        return send_from_directory(FRONTEND_DIR, "index.html")
+        resp = make_response(send_from_directory(FRONTEND_DIR, "index.html"))
+        resp.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+        resp.headers["Pragma"]        = "no-cache"
+        resp.headers["Expires"]       = "0"
+        return resp
 
     @app.route("/<path:filepath>")
     def serve_static(filepath):
-        # If no extension given, try serving as .html page
+        # Route pages without extension → try .html
         if "." not in filepath.split("/")[-1]:
             try:
-                return send_from_directory(FRONTEND_DIR, filepath + ".html")
+                resp = make_response(send_from_directory(FRONTEND_DIR, filepath + ".html"))
             except Exception:
-                return send_from_directory(FRONTEND_DIR, "index.html")
-        return send_from_directory(FRONTEND_DIR, filepath)
+                resp = make_response(send_from_directory(FRONTEND_DIR, "index.html"))
+            resp.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+            resp.headers["Pragma"]        = "no-cache"
+            resp.headers["Expires"]       = "0"
+            return resp
+
+        # Static files (CSS, JS, images, fonts): cache for 1 week
+        resp = make_response(send_from_directory(FRONTEND_DIR, filepath))
+        if filepath.endswith(".html"):
+            resp.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+            resp.headers["Pragma"]        = "no-cache"
+            resp.headers["Expires"]       = "0"
+        elif any(filepath.endswith(ext) for ext in (".css", ".js", ".png", ".svg", ".ico", ".woff2", ".json")):
+            # Service worker itself must never be cached by the browser
+            if "service-worker" in filepath:
+                resp.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+            else:
+                resp.headers["Cache-Control"] = "public, max-age=604800, stale-while-revalidate=86400"
+        return resp
 
     return app
 

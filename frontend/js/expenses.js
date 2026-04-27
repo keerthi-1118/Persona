@@ -113,7 +113,7 @@ function renderBarChart(summary) {
   catChart = new Chart(ctx, {
     type: 'doughnut',
     data: {
-      labels: expenseSummary.map(s => (CAT_ICONS[s.category] || '') + ' ' + s.category),
+      labels: expenseSummary.map(s => s.category.toUpperCase()),
       datasets: [{
         data: expenseSummary.map(s => s.total),
         backgroundColor: expenseSummary.map(s => CAT_COLORS[s.category] || '#9898BB'),

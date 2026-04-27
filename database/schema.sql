@@ -32,6 +32,15 @@ CREATE TABLE IF NOT EXISTS tasks (
     updated_at  DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Task blocks (Dynamic AI focus sessions for multi-day tasks)
+CREATE TABLE IF NOT EXISTS task_blocks (
+    id          TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))),
+    task_id     TEXT NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
+    start_time  DATETIME NOT NULL,
+    end_time    DATETIME NOT NULL,
+    created_at  DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
 -- Assignments table (Google Classroom sync + manual)
 CREATE TABLE IF NOT EXISTS assignments (
     id              TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))),
@@ -54,7 +63,7 @@ CREATE TABLE IF NOT EXISTS expenses (
     id          TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))),
     user_id     TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     amount      REAL NOT NULL,
-    category    TEXT CHECK(category IN ('food','transport','books','entertainment','health','shopping','other')) DEFAULT 'other',
+    category    TEXT CHECK(category IN ('food','transport','books','entertainment','health','shopping','other','Income')) DEFAULT 'other',
     description TEXT,
     date        DATE DEFAULT (date('now')),
     created_at  DATETIME DEFAULT CURRENT_TIMESTAMP
@@ -136,3 +145,14 @@ CREATE INDEX IF NOT EXISTS idx_assignments_user ON assignments(user_id);
 CREATE INDEX IF NOT EXISTS idx_expenses_user ON expenses(user_id);
 CREATE INDEX IF NOT EXISTS idx_habit_logs_habit ON habit_logs(habit_id);
 CREATE INDEX IF NOT EXISTS idx_focus_user ON focus_sessions(user_id);
+
+-- Web Push subscriptions (for smart reminders)
+CREATE TABLE IF NOT EXISTS push_subscriptions (
+    id          TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))),
+    user_id     TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    endpoint    TEXT NOT NULL,
+    p256dh      TEXT,
+    auth        TEXT,
+    updated_at  DATETIME DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(user_id, endpoint)
+);

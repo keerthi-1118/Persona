@@ -3,15 +3,24 @@
  * Daily timeline, week view, drag-and-drop, task CRUD
  */
 
-let currentDate  = new Date();
-let currentView  = 'day';
-let allTasks     = [];
-let allTimetable = []; // Tracks fixed weekly classes
+let currentDate    = new Date();
+let currentView    = 'day';
+let allTasks       = [];
+let allTimetable   = []; // Tracks fixed weekly classes
+let activeFilter   = '';
+
+// Day abbreviation maps for timetable comparison
+const DAY_ABBR = ['sun','mon','tue','wed','thu','fri','sat'];
+const DAY_FULL = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
 
 function initPlanner() {
   updateDateLabel();
   renderDateScroller();
   loadData();
+  // Request notification permission for reminders
+  if (typeof requestNotificationPermission === 'function') {
+    requestNotificationPermission();
+  }
 }
 
 function updateDateLabel() {
@@ -31,7 +40,7 @@ function renderDateScroller() {
   realToday.setHours(0,0,0,0);
   let activeBtn = null;
 
-  for (let i = -7; i <= 14; i++) {
+  for (let i = -30; i <= 60; i++) {
     const d = new Date(realToday);
     d.setDate(realToday.getDate() + i);
     
@@ -61,10 +70,9 @@ function renderDateScroller() {
 }
 
 async function loadData() {
-  const status  = document.getElementById('filter-status')?.value || '';
   const dateStr = currentDate.toISOString().slice(0, 10);
   let taskPath  = `/tasks/?date=${dateStr}`;
-  if (status) taskPath += `&status=${status}`;
+  if (activeFilter) taskPath += `&status=${activeFilter}`;
 
   try {
     const [tasksRes, timetableRes] = await Promise.all([
@@ -80,6 +88,15 @@ async function loadData() {
 
   renderTimeline();
   renderTaskList();
+
+  // Set local reminders for upcoming tasks
+  if (typeof setTaskReminder === 'function') {
+    allTasks.forEach(t => setTaskReminder(t));
+  }
+
+  // Update task count badge
+  const countEl = document.getElementById('task-count');
+  if (countEl) countEl.textContent = allTasks.length ? `${allTasks.length} task${allTasks.length !== 1 ? 's' : ''}` : '';
 }
 
 // ── Timeline ──────────────────────────────────────────────────
@@ -90,71 +107,98 @@ function renderTimeline() {
   const now = new Date();
   const isToday = currentDate.toDateString() === now.toDateString();
   
-  // Decide start hour: If today, start at current hour. Otherwise, start early (6 AM).
-  let startHour = 6;
-  if (isToday) {
-    startHour = Math.max(6, now.getHours());
-  }
-  const endHour = 22; // 10 PM
+  // Always start at 6 AM so earlier tasks are visible.
+  // Past hours are shown at reduced opacity (set below).
+  const startHour = 6;
+  const endHour   = 22; // 10 PM
 
   const hours = [];
   for (let h = startHour; h <= endHour; h++) hours.push(h);
 
-  const daysOfWeek = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
-  const currentDayName = daysOfWeek[currentDate.getDay()];
+  // Support both '3-letter' (mon) and full-name (Monday) day formats in timetable
+  const currentDayFull = DAY_FULL[currentDate.getDay()];
+  const currentDayAbbr = DAY_ABBR[currentDate.getDay()];
 
-  el.innerHTML = hours.map(h => {
+  // ── BUG FIX: use filter() not find() so ALL tasks per hour are shown ──
+  const slotHtml = hours.map(h => {
     const timeStr  = `${String(h).padStart(2, '0')}:00`;
-    
-    // Find task starting in this hour
-    const task = allTasks.find(t => t.start_time && new Date(t.start_time).getHours() === h);
-    
-    // Find fixed timetable class starting in this hour (parsing HH:MM string)
-    const tclass = allTimetable.find(c => c.day_of_week === currentDayName && c.start_time && parseInt(c.start_time.split(':')[0], 10) === h);
+    const isPast   = isToday && h < now.getHours();
 
-    let contentHtml = '<div style="min-width:1px;flex:1"></div>';
-    let hasItem = false;
+    // Collect ALL timetable classes starting in this hour
+    const tclasses = allTimetable.filter(c => {
+      const dow = (c.day_of_week || '').toLowerCase();
+      const matchDay = dow === currentDayAbbr || dow === currentDayFull.toLowerCase();
+      return matchDay && c.start_time && parseInt(c.start_time.split(':')[0], 10) === h;
+    });
 
-    if (tclass) {
-      hasItem = true;
-      contentHtml = `
-        <div class="slot-task" style="background:var(--bg-glass2); border-left:4px solid var(--accent)" onclick="editClass(${JSON.stringify(tclass).replace(/"/g,'&quot;')})">
-          <div class="slot-task-title"><svg class="line-icon" style="width:12px;height:12px;margin-bottom:-1px"><use href="#icon-book"></use></svg> ${esc(tclass.label)}</div>
-          <div class="slot-task-time">${tclass.start_time} – ${tclass.end_time} <span class="badge badge-medium" style="margin-left:8px">${tclass.type || 'Class'}</span></div>
+    // Collect ALL tasks starting in this hour
+    const tasks = allTasks.filter(t => t.start_time && new Date(t.start_time).getHours() === h);
+
+    const hasItem = tclasses.length > 0 || tasks.length > 0;
+
+    // Build inner content — classes first, then tasks
+    const classHtml = tclasses.map(tclass => `
+      <div class="slot-task" style="background:var(--bg-glass2);border-left:4px solid var(--accent);margin-bottom:4px"
+           onclick="editClass(${JSON.stringify(tclass).replace(/"/g,'&quot;')})">
+        <div class="slot-task-title">
+          <svg class="line-icon" style="width:12px;height:12px;margin-bottom:-1px"><use href="#icon-book"></use></svg>
+          ${esc(tclass.label)}
         </div>
-      `;
-    } else if (task) {
-      hasItem = true;
-      contentHtml = `
-        <div class="slot-task" onclick="editTask(${JSON.stringify(task).replace(/"/g,'&quot;')})">
-          <div class="slot-task-title">${esc(task.title)}</div>
-          <div class="slot-task-time">
-            ${fmtTime(task.start_time)} – ${task.end_time ? fmtTime(task.end_time) : '?'}
-            <span class="badge badge-${task.priority}" style="margin-left:8px">${task.priority}</span>
-          </div>
-        </div>`;
-    }
+        <div class="slot-task-time">${tclass.start_time} – ${tclass.end_time}
+          <span class="badge badge-medium" style="margin-left:8px">${esc(tclass.type || 'Class')}</span>
+        </div>
+      </div>`).join('');
+
+    const taskHtml = tasks.map(task => `
+      <div class="slot-task" style="margin-bottom:4px"
+           onclick="editTask(${JSON.stringify(task).replace(/"/g,'&quot;')})">
+        <div class="slot-task-title">${esc(task.title)}</div>
+        <div class="slot-task-time">
+          ${fmtTime(task.start_time)} – ${task.end_time ? fmtTime(task.end_time) : '?'}
+          <span class="badge badge-${esc(task.priority)}" style="margin-left:8px">${esc(task.priority)}</span>
+          <span class="badge badge-${esc(task.status)}" style="margin-left:4px">${esc(task.status.replace('_',' '))}</span>
+        </div>
+      </div>`).join('');
+
+    const contentHtml = (classHtml || taskHtml)
+      ? `<div style="flex:1;min-width:0">${classHtml}${taskHtml}</div>`
+      : `<div style="min-width:1px;flex:1"></div>`;
 
     return `
-      <div class="timeline-slot" style="opacity: ${isToday && h < now.getHours() ? '0.4' : '1'}">
+      <div class="timeline-slot" style="opacity:${isPast ? '0.4' : '1'}">
         <div class="slot-time">${timeStr}</div>
         <div class="slot-dot ${hasItem ? 'has-task' : ''}"></div>
         ${contentHtml}
       </div>`;
   }).join('');
+
+  el.innerHTML = slotHtml || `<div class="timeline-empty" onclick="toggleFAB()" style="cursor:pointer">No items for this day. Tap to add a task or class!</div>`;
 }
 
 // ── Task List ─────────────────────────────────────────────────
+function filterTasks(status, btn) {
+  activeFilter = status;
+  // Update pill active state
+  document.querySelectorAll('#status-filter .tab-pill').forEach(b => b.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+  loadData();
+}
+
 function renderTaskList() {
-  const el = document.getElementById('task-list');
+  // planner.html uses #task-list-wrap, fall back gracefully
+  const el = document.getElementById('task-list-wrap') || document.getElementById('task-list');
   if (!el) return;
 
   if (!allTasks.length) {
-    el.innerHTML = `<div class="empty-state"><div class="empty-icon sticker sticker-lg"><svg class="line-icon"><use href="#icon-list"></use></svg></div><h3>No tasks</h3><p>Add a task or change the filter</p></div>`;
+    el.innerHTML = `<div class="empty-state" style="cursor:pointer;" onclick="toggleFAB()">
+      <div class="empty-icon sticker sticker-lg"><svg class="line-icon"><use href="#icon-list"></use></svg></div>
+      <h3>No tasks</h3>
+      <p>Tap to add a task or change the filter</p>
+    </div>`;
     return;
   }
 
-  el.innerHTML = allTasks.map(t => `
+  el.innerHTML = allTasks.filter(t => !t.is_block).map(t => `
     <div class="task-item ${t.status === 'completed' ? 'completed' : ''}" draggable="true">
       <div class="task-check" onclick="completeTask('${t.id}', this)">
         ${t.status === 'completed' ? '<svg class="line-icon" style="width:14px;height:14px;stroke-width:3px"><use href="#icon-check"></use></svg>' : ''}
@@ -214,7 +258,8 @@ function goToDay(dateStr) {
 function switchView(view, btn) {
   currentView = view;
   if (btn) {
-    btn.closest('.tabs')?.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    // BUG FIX: container is .view-pills, not .tabs
+    document.querySelectorAll('.view-pills .view-pill').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
   }
   document.getElementById('timeline-view').style.display = view === 'day'  ? '' : 'none';
@@ -232,8 +277,12 @@ function editTask(t) {
   document.getElementById('task-end').value     = t.end_time   ? t.end_time.replace(' ','T').slice(0,16)   : '';
   document.getElementById('task-priority').value= t.priority;
   document.getElementById('task-status').value  = t.status;
-  document.getElementById('task-modal-title').innerHTML = '<svg class="line-icon" style="width:18px"><use href="#icon-edit"></use></svg> Edit Task';
-  openModal('add-task-modal');
+  // planner.html uses bottom-sheet pattern (sheet-title), not a modal
+  const sheetTitle = document.getElementById('sheet-title');
+  if (sheetTitle) sheetTitle.innerHTML = '<svg class="line-icon" style="width:18px"><use href="#icon-edit"></use></svg> Edit Task';
+  // Open the task bottom sheet (planner uses #task-sheet, not #fab)
+  document.getElementById('task-sheet').classList.add('show');
+  document.getElementById('task-backdrop').classList.add('show');
 }
 
 async function saveTask() {
@@ -251,11 +300,18 @@ async function saveTask() {
   try {
     if (id) await API.put('/tasks/' + id, payload);
     else    await API.post('/tasks/', payload);
-    closeModal('add-task-modal');
+    
+    // Auto-reschedule dynamically
+    showToast('info', 'Updating Schedule', 'Recalculating timeline...');
+    await API.post('/planner/generate', {});
+
+    // Close the bottom sheet (planner uses sheet, not modal)
+    if (typeof closeFAB === 'function') closeFAB();
     document.getElementById('edit-task-id').value = '';
-    document.getElementById('task-modal-title').innerHTML = '<svg class="line-icon" style="width:18px"><use href="#icon-plus"></use></svg> New Task';
-    showToast('success', id ? 'Updated!' : 'Created!', 'Task saved');
-    loadTasks();
+    const sheetTitle = document.getElementById('sheet-title');
+    if (sheetTitle) sheetTitle.innerHTML = '<svg class="line-icon" style="width:18px"><use href="#icon-plus"></use></svg> New Task';
+    showToast('success', id ? 'Updated!' : 'Created!', 'Task saved & scheduled');
+    loadData();
   } catch (e) {
     showToast('error', 'Failed', e.message);
   }
@@ -265,7 +321,7 @@ async function deleteTask(id) {
   if (!confirm('Delete this task?')) return;
   await API.del('/tasks/' + id);
   showToast('info', 'Deleted', 'Task removed');
-  loadTasks();
+  loadData();
 }
 
 async function completeTask(id, el) {
@@ -285,6 +341,11 @@ async function autoScheduleAll() {
     showToast('error', 'Failed', e.message);
   }
 }
+
+// ── AI Smart Scheduler ────────────────────────────────────────
+// NOTE: The full rich-UI aiSchedule() is defined in planner.html's inline
+// <script> block and takes precedence at runtime. This stub is kept only
+// as a fallback for pages that include planner.js without the inline block.
 
 // ── Fixed Class CRUD (Timetable) ──────────────────────────────
 function editClass(c) {
@@ -338,4 +399,53 @@ async function deleteClassId() {
 function fmtTime(iso) {
   if (!iso) return '';
   return new Date(iso).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
+}
+
+function scrollDates(offset) {
+  const scroller = document.getElementById('date-scroller');
+  if (scroller) {
+    scroller.scrollBy({ left: offset, behavior: 'smooth' });
+  }
+}
+
+// ── Upload Timetable ──────────────────────────────────────────
+async function uploadTimetable(event) {
+  const fileInput = event.target;
+  if (!fileInput.files || fileInput.files.length === 0) return;
+
+  const file = fileInput.files[0];
+  const formData = new FormData();
+  formData.append('image', file);
+
+  // Show a loading toast
+  showToast('info', 'Reading Timetable...', 'AI is processing your schedule. This might take a few seconds.');
+  
+  try {
+    const res = await fetch('/api/timetable/upload', {
+      method: 'POST',
+      body: formData,
+      credentials: 'include' // needed if there is auth
+    });
+    
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || `HTTP ${res.status}`);
+    }
+    
+    const data = await res.json();
+    showToast('success', 'OCR Complete!', data.message);
+    
+    // Clear the input so identical files can trigger onchange
+    fileInput.value = '';
+    
+    // Auto-reschedule and reload data (our backend trigger handles it, but let's refresh UI)
+    showToast('info', 'Updating Schedule', 'Recalculating timeline...', 3000);
+    setTimeout(() => {
+        loadData();
+    }, 500);
+
+  } catch (e) {
+    fileInput.value = '';
+    showToast('error', 'Upload Failed', e.message);
+  }
 }

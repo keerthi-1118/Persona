@@ -124,7 +124,36 @@ function esc(str) {
 
 // ── Register Service Worker ────────────────────────────────────
 if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/service-worker.js').catch(console.error);
+  window.addEventListener('load', async () => {
+    try {
+      const reg = await navigator.serviceWorker.register('/service-worker.js', {
+        // Always bypass the HTTP cache when fetching the SW script itself
+        updateViaCache: 'none',
+      });
+
+      // Check for SW updates immediately on every page load
+      reg.update().catch(() => {});
+
+      // When a new SW installs (waiting), tell it to skip waiting
+      reg.addEventListener('updatefound', () => {
+        const newWorker = reg.installing;
+        newWorker?.addEventListener('statechange', () => {
+          if (newWorker.statechange === 'installed' && navigator.serviceWorker.controller) {
+            newWorker.postMessage({ type: 'SKIP_WAITING' });
+          }
+        });
+      });
+
+      // When the SW controller changes (new SW took over), reload all tabs
+      let refreshing = false;
+      navigator.serviceWorker.addEventListener('controllerchange', () => {
+        if (!refreshing) {
+          refreshing = true;
+          window.location.reload();
+        }
+      });
+    } catch (e) {
+      console.warn('[SW] Registration failed:', e);
+    }
   });
 }

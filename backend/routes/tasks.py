@@ -40,8 +40,54 @@ def get_tasks():
     # Filter by date and priority in Python because REST API doesn't support complex SQL functions easily
     if priority:
         tasks = [t for t in tasks if t.get("priority") == priority]
+
+    # Fetch task blocks
+    blocks = db_query("SELECT * FROM task_blocks WHERE task_id IN (SELECT id FROM tasks WHERE user_id=?)", (uid,))
+    blocks_by_task = {}
+    for b in blocks:
+        blocks_by_task.setdefault(b["task_id"], []).append(b)
+
+    virtual_tasks = []
+    for t in tasks:
+        tid = t["id"]
+        if tid in blocks_by_task:
+            for i, b in enumerate(blocks_by_task[tid]):
+                vt = t.copy()
+                vt["id"] = f"{tid}___block_{b['id']}" # custom ID format
+                vt["title"] = f"{t['title']} (Session {i+1})"
+                vt["start_time"] = b["start_time"]
+                vt["end_time"] = b["end_time"]
+                vt["is_block"] = True
+                virtual_tasks.append(vt)
+            
+            # If the task has blocks, the blocks represent its timeline presence
+            # We clear the main task's start_time so it doesn't duplicate on the timeline
+            t["start_time"] = None
+            
+    tasks.extend(virtual_tasks)
+
     if date:
-        tasks = [t for t in tasks if str(t.get("start_time", "")).startswith(date)]
+        filtered_tasks = []
+        for t in tasks:
+            st = str(t.get("start_time", ""))[:10]
+            et = str(t.get("end_time", ""))[:10]
+            if not st:
+                # Main task containers don't have start_time anymore if they have blocks,
+                # so they won't match the strict date filter unless we pass them through.
+                # But if we pass them through, they appear on every day. That's actually good for long projects!
+                # Let's pass main tasks through if their deadline (end_time) is >= date
+                if et and et >= date:
+                    filtered_tasks.append(t)
+                continue
+            if et:
+                # If there's an end time, the task/block spans from st to et
+                if st <= date <= et:
+                    filtered_tasks.append(t)
+            else:
+                # If no end time, it must exactly match the start date
+                if st == date:
+                    filtered_tasks.append(t)
+        tasks = filtered_tasks
 
     # Sort in Python by priority and then start_time
     pri_map = {"urgent": 1, "high": 2, "medium": 3, "low": 4}
@@ -108,6 +154,10 @@ def update_task(task_id):
         if field in data:
             fields.append(f"{field} = ?")
             params.append(data[field])
+
+    if "start_time" in data or "end_time" in data:
+        fields.append("is_scheduled = ?")
+        params.append(False)
 
     if not fields:
         return jsonify({"error": "No fields to update"}), 400

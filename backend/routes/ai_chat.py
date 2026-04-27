@@ -42,37 +42,16 @@ def ai_schedule():
     # Fetch timetable
     timetable = db_query("SELECT * FROM timetable WHERE user_id=?", (user_id,))
 
-    if not tasks:
-        return jsonify({"explanation": "You have no pending tasks to schedule! Add some tasks first.", "scheduled": []})
-
     try:
-        result = schedule_tasks(list(tasks), list(existing), list(timetable))
-
-        # Apply the schedule to the database
-        scheduled_count = 0
-        for slot in result.get("scheduled", []):
-            task_id = slot.get("task_id")
-            if not task_id: continue
-            db_execute = __import__("database").db_execute
-            db_execute(
-                "UPDATE tasks SET start_time=?, end_time=? WHERE id=? AND user_id=?",
-                (slot.get("start_time"), slot.get("end_time"), task_id, user_id)
-            )
-            scheduled_count += 1
+        from services.scheduler import auto_schedule_all
+        result = auto_schedule_all(user_id)
 
         return jsonify({
-            "message":      f"AI scheduled {scheduled_count} tasks for you!",
+            "message":      f"Smart Scheduler allocated {len(result.get('scheduled', []))} tasks!",
             "explanation":  result.get("explanation", "Your tasks have been scheduled."),
             "tips":         result.get("tips", []),
             "scheduled":    result.get("scheduled", []),
-        })
-
-    except RuntimeError as e:
-        # Gemini not configured — return helpful message
-        return jsonify({
-            "explanation": str(e),
-            "scheduled":   [],
-        }), 503
+        }), 200
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500

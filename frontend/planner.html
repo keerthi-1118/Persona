@@ -4,47 +4,276 @@
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover"/>
   <meta name="theme-color" content="#0d0d18"/>
+  <!-- Prevent browser caching -->
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"/>
+  <meta http-equiv="Pragma" content="no-cache"/>
+  <meta http-equiv="Expires" content="0"/>
   <title>Persona — Planner</title>
   <link rel="stylesheet" href="css/style.css"/>
   <link rel="manifest" href="manifest.json"/>
+  <style>
+    /* ── Planner-specific futuristic overrides ── */
+    .planner-hero {
+      padding: 8px 0 4px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .planner-date-label {
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--text-secondary);
+    }
+    .planner-date-label span {
+      color: var(--accent-light);
+      font-weight: 800;
+    }
+
+    /* AI Schedule Card */
+    .ai-schedule-card {
+      background: linear-gradient(135deg, rgba(92,184,255,0.12) 0%, rgba(181,123,255,0.06) 100%);
+      border: 1px solid rgba(124,198,254,0.3);
+      border-radius: 20px;
+      padding: 18px;
+      margin-bottom: 16px;
+      position: relative;
+      overflow: hidden;
+    }
+    .ai-schedule-card::before {
+      content: '';
+      position: absolute;
+      top: -50px; right: -50px;
+      width: 140px; height: 140px;
+      background: radial-gradient(circle, rgba(92,184,255,0.18) 0%, transparent 70%);
+      pointer-events: none;
+    }
+    .ai-schedule-card::after {
+      content: '';
+      position: absolute;
+      bottom: -30px; left: -30px;
+      width: 100px; height: 100px;
+      background: radial-gradient(circle, rgba(181,123,255,0.1) 0%, transparent 70%);
+      pointer-events: none;
+    }
+    .ai-card-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+    .ai-card-icon {
+      width: 36px; height: 36px;
+      background: linear-gradient(135deg, rgba(92,184,255,0.25), rgba(181,123,255,0.15));
+      border: 1px solid rgba(124,198,254,0.4);
+      border-radius: 12px;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .ai-card-label { font-size: 13px; font-weight: 800; color: var(--accent-light); letter-spacing: 0.3px; }
+    .ai-card-sub   { font-size: 11px; color: var(--text-muted); margin-top: 1px; }
+    .ai-output-text {
+      font-size: 13px;
+      color: var(--text-secondary);
+      line-height: 1.7;
+      min-height: 20px;
+    }
+    .ai-output-text.thinking {
+      color: var(--text-muted);
+      font-style: italic;
+      display: flex; align-items: center; gap: 8px;
+    }
+    .ai-output-text.thinking::before {
+      content: '';
+      width: 8px; height: 8px;
+      background: var(--accent);
+      border-radius: 50%;
+      animation: aiThink 1s ease-in-out infinite;
+      flex-shrink: 0;
+    }
+    @keyframes aiThink {
+      0%,100% { opacity: 0.3; transform: scale(0.8); }
+      50%      { opacity: 1;   transform: scale(1.3); }
+    }
+    .btn-ai {
+      display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+      padding: 11px 20px; border-radius: 100px;
+      font-size: 13px; font-weight: 700;
+      background: linear-gradient(135deg, var(--accent), #7dd4ff);
+      color: #0A1128;
+      border: none; cursor: pointer;
+      box-shadow: 0 4px 20px rgba(92,184,255,0.4);
+      transition: all 0.2s cubic-bezier(0.4,0,0.2,1);
+      margin-top: 12px;
+    }
+    .btn-ai:active { transform: scale(0.94); box-shadow: 0 2px 8px rgba(92,184,255,0.3); }
+    .btn-ai.loading { background: var(--bg-glass2); color: var(--text-muted); pointer-events: none; }
+
+    /* AI Scheduled slots (when returned) */
+    .ai-slots-list {
+      margin-top: 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .ai-slot-item {
+      display: flex;
+      gap: 10px;
+      align-items: flex-start;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.06);
+      border-left: 3px solid var(--accent);
+      border-radius: 10px;
+      padding: 10px 12px;
+      animation: fadeIn 0.3s ease both;
+    }
+    .ai-slot-time {
+      font-size: 11px; font-weight: 800;
+      color: var(--accent-light);
+      white-space: nowrap;
+      min-width: 76px;
+      padding-top: 2px;
+    }
+    .ai-slot-body { flex: 1; min-width: 0; }
+    .ai-slot-title { font-size: 13px; font-weight: 700; color: var(--text-primary); }
+    .ai-slot-reason { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+
+    /* AI Tips */
+    .ai-tips {
+      margin-top: 12px;
+      padding: 10px 12px;
+      background: rgba(181,123,255,0.08);
+      border: 1px solid rgba(181,123,255,0.15);
+      border-radius: 12px;
+    }
+    .ai-tips-label { font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.8px; color: var(--purple); margin-bottom: 6px; }
+    .ai-tip { font-size: 12px; color: var(--text-secondary); padding: 3px 0; }
+    .ai-tip::before { content: "✦ "; color: var(--purple); font-size: 9px; }
+
+    /* ── Day/Week toggle pills ── */
+    .view-pills {
+      display: flex; gap: 6px;
+      margin-bottom: 14px;
+    }
+    .view-pill {
+      padding: 7px 20px; border-radius: 100px;
+      font-size: 13px; font-weight: 700;
+      background: var(--bg-glass2); border: 1px solid var(--border);
+      color: var(--text-muted); cursor: pointer;
+      transition: all 0.2s;
+    }
+    .view-pill.active {
+      background: var(--accent-dim);
+      border-color: var(--accent);
+      color: var(--accent-light);
+    }
+
+    /* ── Timeline section ── */
+    .timeline-header {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 10px;
+    }
+    .timeline-header-title { font-size: 15px; font-weight: 700; color: var(--text-primary); }
+
+    /* ── Task list card ── */
+    .tasks-section-header {
+      display: flex; align-items: center; justify-content: space-between;
+      margin: 22px 0 10px;
+    }
+    .tasks-section-title { font-size: 15px; font-weight: 700; color: var(--text-primary); }
+    .task-count-badge {
+      font-size: 11px; color: var(--text-muted);
+      background: var(--bg-glass2); border: 1px solid var(--border);
+      border-radius: 100px; padding: 2px 10px;
+    }
+
+    /* ── Slot task upgraded ── */
+    .slot-task-time {
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-top: 3px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    /* ── Empty timeline message ── */
+    .timeline-empty {
+      text-align: center;
+      padding: 30px 20px;
+      color: var(--text-muted);
+      font-size: 13px;
+      border: 1px dashed var(--border-light);
+      border-radius: 16px;
+      margin: 8px 0;
+    }
+  </style>
 </head>
 <body>
 <div class="app-shell">
 
   <header class="app-header">
     <div>
-      <div class="header-title"><svg class="line-icon" style="width:22px;height:22px"><use href="#icon-calendar"></use></svg> Planner</div>
-      <div class="header-subtitle" id="planner-date"></div>
+      <div class="header-title" style="display:flex;align-items:center;gap:8px">
+        <svg class="line-icon" style="width:22px;height:22px;stroke:var(--accent-light)"><use href="#icon-calendar"></use></svg>
+        Planner
+      </div>
+      <div class="planner-date-label" id="planner-date">Today</div>
     </div>
     <div class="header-right">
-      <button class="icon-btn" onclick="window.location='/'" title="AI Schedule"><svg class="line-icon" style="width:18px;height:18px"><use href="#icon-globe"></use></svg></button>
+      <button class="icon-btn" onclick="syncAndSchedule()" title="AI Schedule">
+        <svg class="line-icon" style="width:18px;height:18px;stroke:var(--accent-light)"><use href="#icon-bot"></use></svg>
+      </button>
     </div>
   </header>
 
   <main class="page-content">
-    
-    <!-- Horizon Date Scroller -->
-    <div class="date-scroller" id="date-scroller" style="margin-bottom:16px; margin-top:5px; margin-left:-20px; margin-right:-20px; padding: 0 20px 10px 20px;"></div>
 
-    <!-- Auto-schedule banner -->
-    <div class="ai-plan-card" style="margin-bottom:14px">
-      <div class="ai-plan-header">
-        <span class="ai-plan-icon"><svg class="line-icon" style="width:20px;height:20px;stroke:#7CC6FE"><use href="#icon-globe"></use></svg></span>
-        <span class="ai-plan-title">AI Smart Scheduler</span>
-      </div>
-      <div class="ai-plan-text" id="ai-plan-text">Tap below to let Gemini AI plan your entire week intelligently.</div>
-      <div style="margin-top:10px">
-        <button class="btn btn-primary btn-sm" onclick="aiSchedule()"><svg class="line-icon" style="width:14px;height:14px"><use href="#icon-bot"></use></svg> AI Schedule My Tasks</button>
-      </div>
+    <!-- ── Horizon Date Scroller ── -->
+    <div style="display:flex; align-items:center; gap:4px; margin-bottom: 14px;">
+      <button class="icon-btn" onclick="scrollDates(-200)" style="width:32px; height:32px; flex-shrink:0; background:transparent; border:none; color:var(--text-muted);">
+        <svg class="line-icon" style="width:20px;height:20px"><use href="#icon-chevron-left"></use></svg>
+      </button>
+      
+      <div class="date-scroller" id="date-scroller" style="margin-bottom:0; flex:1;"></div>
+      
+      <button class="icon-btn" onclick="scrollDates(200)" style="width:32px; height:32px; flex-shrink:0; background:transparent; border:none; color:var(--text-muted);">
+        <svg class="line-icon" style="width:20px;height:20px"><use href="#icon-chevron-right"></use></svg>
+      </button>
     </div>
 
-    <!-- Day/Week toggle -->
-    <div class="tab-pills" style="margin-bottom:16px">
-      <button class="tab-pill active" onclick="switchView('day',this)">Day</button>
-      <button class="tab-pill" onclick="switchView('week',this)">Week</button>
+    <!-- ── AI Schedule Card ── -->
+    <div class="ai-schedule-card">
+      <div class="ai-card-header">
+        <div class="ai-card-icon">
+          <svg class="line-icon" style="width:18px;height:18px;stroke:var(--accent-light)"><use href="#icon-bot"></use></svg>
+        </div>
+        <div>
+          <div class="ai-card-label">AI Smart Scheduler</div>
+          <div class="ai-card-sub">Powered by Gemini AI</div>
+        </div>
+      </div>
+      <div class="ai-output-text" id="ai-plan-text">
+        Let Gemini AI intelligently plan your entire week — scheduling tasks around your classes and deadlines.
+      </div>
+      <div id="ai-slots-container" style="display:none">
+        <div class="ai-slots-list" id="ai-slots-list"></div>
+        <div class="ai-tips" id="ai-tips-box" style="display:none">
+          <div class="ai-tips-label">💡 Tips for you</div>
+          <div id="ai-tips-content"></div>
+        </div>
+      </div>
+      <button class="btn-ai" id="ai-schedule-btn" onclick="aiSchedule()">
+        <svg class="line-icon" style="width:15px;height:15px;stroke:#0A1128"><use href="#icon-bot"></use></svg>
+        Generate My Daily Plan
+      </button>
     </div>
 
-    <!-- Filter chips -->
+    <!-- ── Day / Week Toggle ── -->
+    <div class="view-pills">
+      <button class="view-pill active" id="pill-day"  onclick="switchView('day',this)">Day</button>
+      <button class="view-pill"        id="pill-week" onclick="switchView('week',this)">Week</button>
+    </div>
+
+    <!-- ── Filter Chips ── -->
     <div class="tab-pills" id="status-filter">
       <button class="tab-pill active" onclick="filterTasks('',this)">All</button>
       <button class="tab-pill" onclick="filterTasks('pending',this)">Pending</button>
@@ -52,52 +281,68 @@
       <button class="tab-pill" onclick="filterTasks('completed',this)">Done</button>
     </div>
 
-    <!-- Timeline View -->
+    <!-- ── Timeline View ── -->
     <div id="timeline-view">
-      <div class="section-head" style="margin-bottom:10px">
-        <span class="section-title">Daily Timeline</span>
-        <button class="btn btn-secondary btn-sm" style="padding:4px 10px;font-size:12px" onclick="openClassFAB()">+ Add Class</button>
+      <div class="timeline-header">
+        <span class="timeline-header-title">Daily Timeline</span>
+        <div style="display:flex; gap:8px;">
+          <input type="file" id="timetable-file" accept="image/*" style="display:none;" onchange="uploadTimetable(event)" />
+          <button class="btn btn-secondary btn-sm" onclick="document.getElementById('timetable-file').click()" style="font-size:12px;padding:6px 12px; border-color:var(--accent); color:var(--accent-light);">
+            <svg class="line-icon" style="width:13px;height:13px"><use href="#icon-image"></use></svg>
+            Upload
+          </button>
+          <button class="btn btn-secondary btn-sm" onclick="openClassFAB()" style="font-size:12px;padding:6px 12px">
+            <svg class="line-icon" style="width:13px;height:13px"><use href="#icon-plus"></use></svg>
+            Add Class
+          </button>
+        </div>
       </div>
       <div id="timeline-slots" style="margin-left:16px"></div>
     </div>
 
-    <!-- Week View (hidden) -->
+    <!-- ── Week View (hidden) ── -->
     <div id="week-view" style="display:none">
-      <div class="section-title" style="margin-bottom:10px">This Week</div>
-      <div id="week-grid" style="display:grid;grid-template-columns:repeat(7,1fr);gap:6px"></div>
+      <div class="tasks-section-title" style="margin-bottom:10px">This Week</div>
+      <div id="week-grid" style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px"></div>
     </div>
 
-    <!-- Task list -->
-    <div class="section-head" style="margin-top:20px">
-      <span class="section-title">All Tasks</span>
-      <span id="task-count" style="font-size:12px;color:var(--text-muted)"></span>
+    <!-- ── Task List ── -->
+    <div class="tasks-section-header" style="display:flex; justify-content:space-between; align-items:center;">
+      <span class="tasks-section-title">All Tasks</span>
+      <div style="display:flex; gap:12px; align-items:center;">
+        <span class="task-count-badge" id="task-count">0 tasks</span>
+        <button onclick="toggleFAB()" style="background:var(--accent); color:white; border:none; padding:6px 12px; border-radius:var(--radius-md); font-size:12px; cursor:pointer; font-weight:bold;">+ Add</button>
+      </div>
     </div>
     <div class="card card-sm" id="task-list-wrap"></div>
 
   </main>
 
-  <!-- FAB -->
-  <button class="fab" id="fab" onclick="toggleFAB()">+</button>
+</div><!-- /.app-shell -->
 
-  <!-- AI bubble -->
-  <div class="ai-bubble">
-    <button class="ai-btn sticker" onclick="aiSchedule()" title="AI Schedule"><svg class="line-icon" style="stroke:#fff"><use href="#icon-globe"></use></svg></button>
-  </div>
-</div>
+<!-- Dedicated Planner FAB removed per UX update -->
 
-<!-- Add Task Sheet -->
+<!-- ── Add Task Bottom Sheet ── -->
 <div class="sheet-backdrop" id="task-backdrop" onclick="closeFAB()"></div>
 <div class="bottom-sheet" id="task-sheet">
   <div class="sheet-handle"></div>
   <div class="sheet-header">
-    <span class="sheet-title" id="sheet-title"><svg class="line-icon" style="width:18px"><use href="#icon-plus"></use></svg> New Task</span>
-    <button class="sheet-close" onclick="closeFAB()"><svg class="line-icon" style="width:20px"><use href="#icon-x"></use></svg></button>
+    <span class="sheet-title" id="sheet-title">
+      <svg class="line-icon" style="width:18px"><use href="#icon-plus"></use></svg> New Task
+    </span>
+    <button class="sheet-close" onclick="closeFAB()">
+      <svg class="line-icon" style="width:20px"><use href="#icon-x"></use></svg>
+    </button>
   </div>
   <div class="sheet-body">
     <input type="hidden" id="edit-task-id"/>
-    <div class="form-group"><label>Title *</label><input type="text" id="task-title" placeholder="Task title"/></div>
+    <div class="form-group">
+      <label>Title *</label>
+      <input type="text" id="task-title" placeholder="What needs to be done?"/>
+    </div>
     <div class="form-row">
-      <div class="form-group"><label>Priority</label>
+      <div class="form-group">
+        <label>Priority</label>
         <select id="task-priority">
           <option value="medium">Medium</option>
           <option value="high">High</option>
@@ -105,100 +350,60 @@
           <option value="low">Low</option>
         </select>
       </div>
-      <div class="form-group"><label>Status</label>
+      <div class="form-group">
+        <label>Status</label>
         <select id="task-status">
           <option value="pending">⏳ Pending</option>
-          <option value="in_progress">In Progress</option>
-          <option value="completed">Done</option>
+          <option value="in_progress">🔄 In Progress</option>
+          <option value="completed">✅ Done</option>
         </select>
       </div>
     </div>
     <div class="form-row">
-      <div class="form-group"><label>Start</label><input type="datetime-local" id="task-start"/></div>
-      <div class="form-group"><label>End</label><input type="datetime-local" id="task-end"/></div>
+      <div class="form-group">
+        <label>Start Time</label>
+        <input type="datetime-local" id="task-start"/>
+      </div>
+      <div class="form-group">
+        <label>End / Deadline</label>
+        <input type="datetime-local" id="task-end"/>
+      </div>
     </div>
-    <div class="form-group"><label>Description</label><textarea id="task-desc" placeholder="Details…"></textarea></div>
+    <div class="form-group">
+      <label>Description</label>
+      <textarea id="task-desc" placeholder="Optional details…"></textarea>
+    </div>
   </div>
   <div class="sheet-footer">
     <button class="btn btn-secondary" onclick="closeFAB()">Cancel</button>
-    <button class="btn btn-primary" onclick="saveTask()"><svg class="line-icon" style="width:18px"><use href="#icon-check"></use></svg> Save</button>
+    <button class="btn btn-primary" onclick="saveTask()">
+      <svg class="line-icon" style="width:16px"><use href="#icon-check"></use></svg>
+      Save Task
+    </button>
   </div>
 </div>
 
-<div class="toast-container" id="toast-container"></div>
-<script src="js/auth-guard.js"></script>
-<script src="js/app.js"></script>
-<script src="js/clock-nav.js"></script>
-<script src="js/planner.js"></script>
-<script>
-  document.addEventListener('DOMContentLoaded', () => { initApp(); initPlanner(); });
-
-  let fabOpen = false;
-  function toggleFAB() {
-    fabOpen = !fabOpen;
-    document.getElementById('edit-task-id').value = '';
-    document.getElementById('sheet-title').innerHTML = '<svg class="line-icon" style="width:18px"><use href="#icon-plus"></use></svg> New Task';
-    ['task-title','task-desc'].forEach(id=>document.getElementById(id).value='');
-    document.getElementById('task-priority').value = 'medium';
-    document.getElementById('task-status').value   = 'pending';
-    document.getElementById('task-start').value = document.getElementById('task-end').value = '';
-    document.getElementById('fab').classList.toggle('open', fabOpen);
-    document.getElementById('task-sheet').classList.toggle('show', fabOpen);
-    document.getElementById('task-backdrop').classList.toggle('show', fabOpen);
-  }
-  function closeFAB() {
-    fabOpen = false;
-    document.getElementById('fab').classList.remove('open');
-    document.getElementById('task-sheet').classList.remove('show');
-    document.getElementById('task-backdrop').classList.remove('show');
-  }
-
-  /* Class / Timetable Sheet */
-  function openClassFAB() {
-    document.getElementById('class-sheet').classList.add('show');
-    document.getElementById('task-backdrop').classList.add('show');
-  }
-  function closeClassFAB() {
-    document.getElementById('class-sheet').classList.remove('show');
-    document.getElementById('task-backdrop').classList.remove('show');
-    document.getElementById('edit-class-id').value = '';
-    ['class-label','class-start','class-end'].forEach(id=>document.getElementById(id).value='');
-    document.getElementById('class-modal-title').innerHTML = '<svg class="line-icon" style="width:18px"><use href="#icon-plus"></use></svg> Add Class';
-  }
-
-  async function aiSchedule() {
-    const txt = document.getElementById('ai-plan-text');
-    txt.textContent = 'Thinking about your tasks…';
-    try {
-      const res = await API.post('/scheduler/auto-schedule', {});
-      txt.textContent = res.explanation || 'Tasks scheduled!';
-      showToast('success', 'AI Scheduled!', res.message);
-      loadData();
-    } catch(e) {
-      txt.textContent = 'Set GEMINI_API_KEY in backend/.env to enable AI scheduling.';
-      showToast('error','AI Error', e.message);
-    }
-  }
-</script>
-
-<!-- Add Class Sheet -->
+<!-- ── Add Class (Timetable) Sheet ── -->
 <div class="bottom-sheet" id="class-sheet">
   <div class="sheet-handle"></div>
   <div class="sheet-header">
-    <span class="sheet-title" id="class-modal-title"><svg class="line-icon" style="width:18px"><use href="#icon-plus"></use></svg> Add Class</span>
-    <button class="sheet-close" onclick="closeClassFAB()"><svg class="line-icon" style="width:20px"><use href="#icon-x"></use></svg></button>
+    <span class="sheet-title" id="class-modal-title">
+      <svg class="line-icon" style="width:18px"><use href="#icon-plus"></use></svg> Add Class
+    </span>
+    <button class="sheet-close" onclick="closeClassFAB()">
+      <svg class="line-icon" style="width:20px"><use href="#icon-x"></use></svg>
+    </button>
   </div>
   <div class="sheet-body">
     <input type="hidden" id="edit-class-id"/>
     <div class="form-group">
       <label>Label / Course Name *</label>
-      <input type="text" id="class-label" placeholder="e.g. Computer Science 101" required/>
+      <input type="text" id="class-label" placeholder="e.g. Computer Science 101"/>
     </div>
-    
     <div class="form-row">
       <div class="form-group">
         <label>Day of Week *</label>
-        <select id="class-day" required>
+        <select id="class-day">
           <option value="Monday">Monday</option>
           <option value="Tuesday">Tuesday</option>
           <option value="Wednesday">Wednesday</option>
@@ -211,36 +416,177 @@
       <div class="form-group">
         <label>Type</label>
         <select id="class-type">
-          <option value="Lecture / Class">Lecture / Class</option>
+          <option value="Lecture / Class">Lecture</option>
           <option value="Lab">Lab</option>
           <option value="Seminar">Seminar</option>
-          <option value="Work / Job">Work / Job</option>
+          <option value="Work / Job">Work</option>
           <option value="Other">Other</option>
         </select>
       </div>
     </div>
-    
     <div class="form-row">
       <div class="form-group">
         <label>Start Time *</label>
-        <input type="time" id="class-start" required/>
+        <input type="time" id="class-start"/>
       </div>
       <div class="form-group">
         <label>End Time *</label>
-        <input type="time" id="class-end" required/>
+        <input type="time" id="class-end"/>
       </div>
     </div>
   </div>
-  <div class="sheet-footer" style="display:flex; justify-content:space-between; align-items:center;">
+  <div class="sheet-footer" style="justify-content:space-between">
     <button class="btn btn-secondary" onclick="closeClassFAB()">Cancel</button>
-    <div style="display:flex; gap:10px;">
-      <button class="btn btn-danger btn-sm btn-icon" title="Delete" onclick="deleteClassId()"><svg class="line-icon" style="width:18px"><use href="#icon-trash"></use></svg></button>
-      <button class="btn btn-primary" onclick="saveClass()"><svg class="line-icon" style="width:18px"><use href="#icon-check"></use></svg> Save Block</button>
+    <div style="display:flex;gap:10px">
+      <button class="btn btn-danger btn-sm" title="Delete" onclick="deleteClassId()">
+        <svg class="line-icon" style="width:16px"><use href="#icon-trash"></use></svg>
+      </button>
+      <button class="btn btn-primary" onclick="saveClass()">
+        <svg class="line-icon" style="width:16px"><use href="#icon-check"></use></svg>
+        Save Block
+      </button>
     </div>
   </div>
 </div>
+
+<div class="toast-container" id="toast-container"></div>
+
+<script src="js/icons.js"></script>
+<script src="js/auth-guard.js"></script>
+<script src="js/app.js"></script>
+<script src="js/notifications.js"></script>
+<script src="js/clock-nav.js"></script>
+<script src="js/planner.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  initApp();
+  initPlanner();
+});
+
+/* ── Sheet control ── */
+let fabOpen = false;
+
+function toggleFAB() {
+  fabOpen = !fabOpen;
+  if (fabOpen) {
+    document.getElementById('edit-task-id').value = '';
+    document.getElementById('sheet-title').innerHTML =
+      '<svg class="line-icon" style="width:18px"><use href="#icon-plus"></use></svg> New Task';
+    ['task-title','task-desc'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.value = '';
+    });
+    const p = document.getElementById('task-priority');
+    const s = document.getElementById('task-status');
+    if (p) p.value = 'medium';
+    if (s) s.value = 'pending';
+    const st = document.getElementById('task-start');
+    const en = document.getElementById('task-end');
+    if (st) st.value = '';
+    if (en) en.value = '';
+    // Focus title after animation
+    setTimeout(() => document.getElementById('task-title')?.focus(), 350);
+  }
+  const fab = document.getElementById('planner-fab');
+  if (fab) fab.style.transform = fabOpen ? 'scale(0.85) rotate(45deg)' : '';
+  
+  document.getElementById('task-sheet').classList.toggle('show', fabOpen);
+  document.getElementById('task-backdrop').classList.toggle('show', fabOpen);
+}
+
+function closeFAB() {
+  fabOpen = false;
+  const fab = document.getElementById('planner-fab');
+  if (fab) fab.style.transform = '';
+
+  document.getElementById('task-sheet').classList.remove('show');
+  document.getElementById('task-backdrop').classList.remove('show');
+  // Also close class sheet
+  document.getElementById('class-sheet').classList.remove('show');
+}
+
+function openClassFAB() {
+  document.getElementById('class-sheet').classList.add('show');
+  document.getElementById('task-backdrop').classList.add('show');
+}
+
+function closeClassFAB() {
+  document.getElementById('class-sheet').classList.remove('show');
+  document.getElementById('task-backdrop').classList.remove('show');
+  document.getElementById('edit-class-id').value = '';
+  ['class-label','class-start','class-end'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = '';
+  });
+  document.getElementById('class-modal-title').innerHTML =
+    '<svg class="line-icon" style="width:18px"><use href="#icon-plus"></use></svg> Add Class';
+}
+
+/* ── AI Schedule with rich output ── */
+async function aiSchedule() {
+  const btn = document.getElementById('ai-schedule-btn');
+  const txt = document.getElementById('ai-plan-text');
+  const slotsContainer = document.getElementById('ai-slots-container');
+  const slotsList = document.getElementById('ai-slots-list');
+  const tipsBox = document.getElementById('ai-tips-box');
+  const tipsContent = document.getElementById('ai-tips-content');
+
+  btn.classList.add('loading');
+  btn.textContent = '⏳ Thinking…';
+  txt.className = 'ai-output-text thinking';
+  txt.textContent = 'Gemini AI is analyzing your tasks and schedule…';
+  slotsContainer.style.display = 'none';
+
+  try {
+    const res = await API.post('/ai/schedule', {});
+
+    txt.className = 'ai-output-text';
+    txt.textContent = res.explanation || 'Your schedule has been generated!';
+
+    const scheduled = res.scheduled || [];
+    if (scheduled.length > 0) {
+      slotsList.innerHTML = scheduled.map(slot => {
+        const start = slot.start_time ? new Date(slot.start_time).toLocaleTimeString('en-IN', {hour:'2-digit', minute:'2-digit'}) : '';
+        const end   = slot.end_time   ? new Date(slot.end_time).toLocaleTimeString('en-IN', {hour:'2-digit', minute:'2-digit'}) : '';
+        const dateStr = slot.start_time ? new Date(slot.start_time).toLocaleDateString('en-IN', {weekday:'short', month:'short', day:'numeric'}) : '';
+        return `<div class="ai-slot-item">
+          <div class="ai-slot-time">${dateStr}<br>${start}–${end}</div>
+          <div class="ai-slot-body">
+            <div class="ai-slot-title">${esc(slot.title || '')}</div>
+            ${slot.reason ? `<div class="ai-slot-reason">${esc(slot.reason)}</div>` : ''}
+          </div>
+        </div>`;
+      }).join('');
+      slotsContainer.style.display = 'block';
+    }
+
+    const tips = res.tips || [];
+    if (tips.length > 0) {
+      tipsContent.innerHTML = tips.map(t => `<div class="ai-tip">${esc(t)}</div>`).join('');
+      tipsBox.style.display = 'block';
+      slotsContainer.style.display = 'block';
+    }
+
+    btn.classList.remove('loading');
+    btn.innerHTML = '<svg class="line-icon" style="width:15px;height:15px;stroke:#0A1128"><use href="#icon-bot"></use></svg> Reschedule';
+    showToast('success', 'AI Scheduled!', `${scheduled.length} tasks planned for you`);
+    loadData();
+  } catch(e) {
+    txt.className = 'ai-output-text';
+    txt.textContent = e.message.includes('503') || e.message.includes('GEMINI')
+      ? 'Add your GEMINI_API_KEY to backend/.env to enable AI scheduling.'
+      : `Error: ${e.message}`;
+    btn.classList.remove('loading');
+    btn.innerHTML = '<svg class="line-icon" style="width:15px;height:15px;stroke:#0A1128"><use href="#icon-bot"></use></svg> Retry';
+    showToast('error', 'AI Error', e.message);
+  }
+}
+
+// Quick trigger from header button
+async function syncAndSchedule() {
+  showToast('info', 'AI Scheduling…', 'Gemini is planning your day');
+  await aiSchedule();
+}
+</script>
 </body>
 </html>
-
-
-

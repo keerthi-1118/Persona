@@ -2,7 +2,7 @@
   "name": "Persona — Student Productivity",
   "short_name": "Persona",
   "description": "AI-powered student productivity app — planner, assignments, expenses, habits, and more.",
-  "start_url": "/frontend/index.html",
+  "start_url": "/",
   "scope": "/",
   "display": "standalone",
   "orientation": "portrait-primary",

@@ -42,7 +42,8 @@
     'zap': '<polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>',
     'user': '<path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle>',
     'chevron-left': '<polyline points="15 18 9 12 15 6"></polyline>',
-    'chevron-right': '<polyline points="9 18 15 12 9 6"></polyline>'
+    'chevron-right': '<polyline points="9 18 15 12 9 6"></polyline>',
+    'image': '<rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline>'
   };
 
   function injectSpriteSheet() {
