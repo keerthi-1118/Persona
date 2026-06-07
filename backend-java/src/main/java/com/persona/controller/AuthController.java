@@ -203,9 +203,9 @@ public class AuthController {
             "https://www.googleapis.com/auth/classroom.coursework.me.readonly " +
             "https://www.googleapis.com/auth/gmail.modify";
 
-        // Determine redirect URI dynamically based on current host if available
+        // Determine redirect URI dynamically based on current host if available (only for local dev)
         String resolvedRedirectUri = googleRedirectUri;
-        if (request.getHeader("Host") != null) {
+        if (googleRedirectUri != null && googleRedirectUri.contains("localhost") && request.getHeader("Host") != null) {
             String scheme = request.getScheme();
             String host = request.getHeader("Host");
             resolvedRedirectUri = scheme + "://" + host + "/api/auth/google/callback";
@@ -257,9 +257,9 @@ public class AuthController {
             return;
         }
 
-        // Determine redirect URI dynamically based on current host if available
+        // Determine redirect URI dynamically based on current host if available (only for local dev)
         String resolvedRedirectUri = googleRedirectUri;
-        if (request.getHeader("Host") != null) {
+        if (googleRedirectUri != null && googleRedirectUri.contains("localhost") && request.getHeader("Host") != null) {
             String scheme = request.getScheme();
             String host = request.getHeader("Host");
             resolvedRedirectUri = scheme + "://" + host + "/api/auth/google/callback";
