@@ -32,3 +32,20 @@ Thumbs.db
 *.db-wal
 *.sqlite
 *.sqlite3
+
+# Java/Maven
+**/target/
+.classpath
+.project
+.settings/
+*.class
+
+# Android
+**/.gradle/
+**/local.properties
+**/build/
+**/.navigation/
+**/captures/
+.externalNativeBuild
+.cxx
+
