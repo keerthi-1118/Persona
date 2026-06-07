@@ -90,8 +90,10 @@ public class Database {
             }
 
             System.out.println("[OK] SQLite Database Initialized.");
-        } catch (IOException e) {
-            System.err.println("[WARN] Could not load schema.sql: " + e.getMessage());
+        } catch (Exception e) {
+            System.err.println("[ERROR] Database initialization failed!");
+            e.printStackTrace();
+            throw new RuntimeException(e);
         }
     }
 
