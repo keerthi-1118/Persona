@@ -10,11 +10,11 @@ import java.util.concurrent.TimeUnit
 object NetworkClient {
     private var apiService: PersonaApiService? = null
     private var cookieJar: PersistentCookieJar? = null
-    private var currentBaseUrl: String = "http://192.168.1.37:5000/"
+    private var currentBaseUrl: String = "https://persona-b6kj.onrender.com/"
 
     fun getApiService(context: Context): PersonaApiService {
         val sharedPrefs = context.getSharedPreferences("persona_settings", Context.MODE_PRIVATE)
-        val savedBaseUrl = sharedPrefs.getString("api_base_url", "http://192.168.1.37:5000/") ?: "http://192.168.1.37:5000/"
+        val savedBaseUrl = sharedPrefs.getString("api_base_url", "https://persona-b6kj.onrender.com/") ?: "https://persona-b6kj.onrender.com/"
         
         if (apiService == null || savedBaseUrl != currentBaseUrl) {
             currentBaseUrl = savedBaseUrl
@@ -50,7 +50,7 @@ object NetworkClient {
 
     fun getBaseUrl(context: Context): String {
         val sharedPrefs = context.getSharedPreferences("persona_settings", Context.MODE_PRIVATE)
-        return sharedPrefs.getString("api_base_url", "http://192.168.1.37:5000/") ?: "http://192.168.1.37:5000/"
+        return sharedPrefs.getString("api_base_url", "https://persona-b6kj.onrender.com/") ?: "https://persona-b6kj.onrender.com/"
     }
 
     fun setBaseUrl(context: Context, newUrl: String) {

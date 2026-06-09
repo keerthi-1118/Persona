@@ -1,5 +1,6 @@
 package com.example.persona.ui.auth
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import com.example.persona.ui.components.WavingGradientBackground
@@ -12,10 +13,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.persona.R
 import com.example.persona.theme.*
 
 @Composable
@@ -31,8 +34,6 @@ fun LoginScreen(
 
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
-    var serverUrl by remember { mutableStateOf(baseUrl) }
-    var showServerConfig by remember { mutableStateOf(false) }
 
     LaunchedEffect(isLoggedIn) {
         if (isLoggedIn) {
@@ -56,13 +57,13 @@ fun LoginScreen(
         ) {
             Spacer(modifier = Modifier.height(40.dp))
 
-            // App Brand
-            Text(
-                text = "🎓 Persona",
-                fontSize = 38.sp,
-                fontWeight = FontWeight.ExtraBold,
-                color = Color.White,
-                letterSpacing = (-1).sp
+            // App Brand Logo
+            Image(
+                painter = painterResource(id = R.drawable.persona_logo),
+                contentDescription = "Persona Logo",
+                modifier = Modifier
+                    .height(110.dp)
+                    .width(200.dp)
             )
 
             Text(
@@ -179,43 +180,7 @@ fun LoginScreen(
 
                     Spacer(modifier = Modifier.height(16.dp))
 
-                    // Toggle Server Config Link
-                    TextButton(onClick = { showServerConfig = !showServerConfig }) {
-                        Text(
-                            text = if (showServerConfig) "Hide Connection Settings" else "Show Connection Settings",
-                            color = TextMuted,
-                            fontSize = 12.sp
-                        )
-                    }
 
-                    if (showServerConfig) {
-                        Spacer(modifier = Modifier.height(8.dp))
-                        OutlinedTextField(
-                            value = serverUrl,
-                            onValueChange = {
-                                serverUrl = it
-                                viewModel.updateBaseUrl(it)
-                            },
-                            label = { Text("Backend Server URL") },
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(12.dp),
-                            colors = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = Purple,
-                                unfocusedBorderColor = BorderLight,
-                                focusedLabelColor = Purple,
-                                unfocusedLabelColor = TextMuted,
-                                focusedTextColor = TextPrimary,
-                                unfocusedTextColor = TextPrimary
-                            ),
-                            singleLine = true
-                        )
-                        Text(
-                            text = "Default for emulator is http://10.0.2.2:5000",
-                            fontSize = 10.sp,
-                            color = TextMuted,
-                            modifier = Modifier.padding(top = 4.dp)
-                        )
-                    }
                 }
             }
 

@@ -76,14 +76,21 @@ public class DebugController {
                 int failed = 0;
                 StringBuilder errors = new StringBuilder();
                 for (String stmt : script.split(";")) {
-                    String trimmed = stmt.strip();
-                    if (!trimmed.isEmpty() && !trimmed.startsWith("--")) {
+                    StringBuilder sb = new StringBuilder();
+                    for (String line : stmt.split("\n")) {
+                        String trimmedLine = line.trim();
+                        if (!trimmedLine.startsWith("--")) {
+                            sb.append(line).append("\n");
+                        }
+                    }
+                    String cleaned = sb.toString().trim();
+                    if (!cleaned.isEmpty()) {
                         try {
-                            db.execute(trimmed);
+                            db.execute(cleaned);
                             count++;
                         } catch (Exception ex) {
                             failed++;
-                            errors.append("Stmt [").append(trimmed.substring(0, Math.min(trimmed.length(), 40))).append("...] failed: ").append(ex.getMessage()).append("\n");
+                            errors.append("Stmt [").append(cleaned.substring(0, Math.min(cleaned.length(), 40))).append("...] failed: ").append(ex.getMessage()).append("\n");
                         }
                     }
                 }

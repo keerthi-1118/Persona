@@ -71,16 +71,25 @@ public class Database {
 
             // Split and execute each statement individually (SQLite doesn't support executescript via JDBC)
             for (String stmt : script.split(";")) {
-                String trimmed = stmt.strip();
-                if (!trimmed.isEmpty() && !trimmed.startsWith("--")) {
+                // Strip out comment lines
+                StringBuilder sb = new StringBuilder();
+                for (String line : stmt.split("\n")) {
+                    String trimmedLine = line.trim();
+                    if (!trimmedLine.startsWith("--")) {
+                        sb.append(line).append("\n");
+                    }
+                }
+                String cleaned = sb.toString().trim();
+
+                if (!cleaned.isEmpty()) {
                     try {
-                        jdbc.execute(trimmed);
+                        jdbc.execute(cleaned);
                     } catch (Exception e) {
                         String msg = e.getMessage() != null ? e.getMessage().toLowerCase() : "";
                         if (msg.contains("already exists") || msg.contains("duplicate column")) {
                             // ignore expected duplicate errors
                         } else {
-                            System.err.println("[Database] Error executing statement: " + trimmed);
+                            System.err.println("[Database] Error executing statement: " + cleaned);
                             System.err.println("[Database] Cause: " + e.getMessage());
                         }
                     }
