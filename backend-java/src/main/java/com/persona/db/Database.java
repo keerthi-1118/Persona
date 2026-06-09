@@ -76,7 +76,13 @@ public class Database {
                     try {
                         jdbc.execute(trimmed);
                     } catch (Exception e) {
-                        // Ignore "already exists" errors from IF NOT EXISTS — they're expected
+                        String msg = e.getMessage() != null ? e.getMessage().toLowerCase() : "";
+                        if (msg.contains("already exists") || msg.contains("duplicate column")) {
+                            // ignore expected duplicate errors
+                        } else {
+                            System.err.println("[Database] Error executing statement: " + trimmed);
+                            System.err.println("[Database] Cause: " + e.getMessage());
+                        }
                     }
                 }
             }
