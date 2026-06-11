@@ -3,16 +3,21 @@ package com.persona.controller;
 import com.persona.db.Database;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.core.io.ClassPathResource;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
-import java.io.File;
-import java.io.PrintWriter;
-import java.io.StringWriter;
-import java.nio.charset.StandardCharsets;
+
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
+/**
+ * Debug endpoint — shows system health, DB connectivity, and Gemini API status.
+ * Accessible at GET /api/debug/db and GET /api/debug/gemini
+ */
 @RestController
 public class DebugController {
 
@@ -21,98 +26,98 @@ public class DebugController {
     @Value("${spring.datasource.url:}")
     private String dbUrl;
 
+    @Value("${persona.gemini-api-key:}")
+    private String geminiApiKey;
+
     @Autowired
     public DebugController(Database db) {
         this.db = db;
     }
 
+    /** Database health check — confirms PostgreSQL connectivity and tables. */
     @GetMapping("/api/debug/db")
     public Map<String, Object> debugDb() {
-        Map<String, Object> debugInfo = new HashMap<>();
-        debugInfo.put("spring_datasource_url", dbUrl);
+        Map<String, Object> info = new HashMap<>();
+        info.put("datasource_url", dbUrl.replaceAll("password=[^&]*", "password=***"));
+        info.put("database_type", "PostgreSQL");
 
-        // 1. Check SQLite file location
+        // Test query on users table
         try {
-            if (dbUrl != null && dbUrl.startsWith("jdbc:sqlite:")) {
-                String path = dbUrl.substring("jdbc:sqlite:".length());
-                File dbFile = new File(path);
-                debugInfo.put("db_file_absolute_path", dbFile.getAbsolutePath());
-                debugInfo.put("db_file_exists", dbFile.exists());
-                debugInfo.put("db_file_size_bytes", dbFile.exists() ? dbFile.length() : 0);
-                debugInfo.put("db_file_writeable", dbFile.getParentFile() != null ? dbFile.getParentFile().canWrite() : "N/A");
+            List<Map<String, Object>> rows = db.query("SELECT COUNT(*) AS cnt FROM users");
+            long count = rows.isEmpty() ? 0 : ((Number) rows.get(0).get("cnt")).longValue();
+            info.put("users_table", "OK");
+            info.put("users_count", count);
+        } catch (Exception e) {
+            info.put("users_table", "FAILED: " + e.getMessage());
+        }
+
+        // Test query on timetable table
+        try {
+            db.query("SELECT COUNT(*) FROM timetable");
+            info.put("timetable_table", "OK");
+        } catch (Exception e) {
+            info.put("timetable_table", "FAILED: " + e.getMessage());
+        }
+
+        // Test query on tasks table
+        try {
+            db.query("SELECT COUNT(*) FROM tasks");
+            info.put("tasks_table", "OK");
+        } catch (Exception e) {
+            info.put("tasks_table", "FAILED: " + e.getMessage());
+        }
+
+        // Test query on expenses table
+        try {
+            db.query("SELECT COUNT(*) FROM expenses");
+            info.put("expenses_table", "OK");
+        } catch (Exception e) {
+            info.put("expenses_table", "FAILED: " + e.getMessage());
+        }
+
+        info.put("status", "Database health check complete");
+        return info;
+    }
+
+    /** Gemini API connectivity check. */
+    @GetMapping("/api/debug/gemini")
+    public Map<String, Object> debugGemini() {
+        Map<String, Object> info = new HashMap<>();
+
+        boolean keySet = geminiApiKey != null
+            && !geminiApiKey.isEmpty()
+            && !geminiApiKey.equals("YOUR_GEMINI_API_KEY_HERE");
+
+        info.put("gemini_key_configured", keySet);
+        if (!keySet) {
+            info.put("status", "MISSING — set PERSONA_GEMINI_API_KEY env variable on Render");
+            return info;
+        }
+
+        // Ping Gemini with a minimal test prompt
+        try {
+            String url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=" + geminiApiKey;
+            String body = "{\"contents\":[{\"parts\":[{\"text\":\"Reply with just: OK\"}]}]}";
+
+            HttpClient client = HttpClient.newHttpClient();
+            HttpRequest req = HttpRequest.newBuilder()
+                .uri(URI.create(url))
+                .header("Content-Type", "application/json")
+                .POST(HttpRequest.BodyPublishers.ofString(body))
+                .build();
+
+            HttpResponse<String> resp = client.send(req, HttpResponse.BodyHandlers.ofString());
+            info.put("gemini_http_status", resp.statusCode());
+
+            if (resp.statusCode() == 200) {
+                info.put("status", "OK — Gemini API is working correctly");
+            } else {
+                info.put("status", "ERROR — Gemini returned: " + resp.body());
             }
         } catch (Exception e) {
-            debugInfo.put("db_file_check_error", e.getMessage());
+            info.put("status", "ERROR — Could not reach Gemini: " + e.getMessage());
         }
 
-        // 2. Check schema.sql resource
-        try {
-            ClassPathResource resource = new ClassPathResource("schema.sql");
-            debugInfo.put("schema_resource_exists", resource.exists());
-            if (resource.exists()) {
-                String content = new String(resource.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
-                debugInfo.put("schema_size_chars", content.length());
-                debugInfo.put("schema_snippet", content.substring(0, Math.min(content.length(), 200)));
-            }
-        } catch (Exception e) {
-            debugInfo.put("schema_check_error", e.getMessage());
-        }
-
-        // 3. Try creating a table manually
-        try {
-            db.execute("CREATE TABLE IF NOT EXISTS test_debug (id TEXT PRIMARY KEY)");
-            debugInfo.put("manual_table_create", "SUCCESS");
-            db.execute("DROP TABLE test_debug");
-        } catch (Exception e) {
-            debugInfo.put("manual_table_create", "FAILED: " + e.getMessage());
-        }
-
-        // 4. Try running schema initialization manually
-        try {
-            ClassPathResource resource = new ClassPathResource("schema.sql");
-            if (resource.exists()) {
-                String script = new String(resource.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
-                int count = 0;
-                int failed = 0;
-                StringBuilder errors = new StringBuilder();
-                for (String stmt : script.split(";")) {
-                    StringBuilder sb = new StringBuilder();
-                    for (String line : stmt.split("\n")) {
-                        String trimmedLine = line.trim();
-                        if (!trimmedLine.startsWith("--")) {
-                            sb.append(line).append("\n");
-                        }
-                    }
-                    String cleaned = sb.toString().trim();
-                    if (!cleaned.isEmpty()) {
-                        try {
-                            db.execute(cleaned);
-                            count++;
-                        } catch (Exception ex) {
-                            failed++;
-                            errors.append("Stmt [").append(cleaned.substring(0, Math.min(cleaned.length(), 40))).append("...] failed: ").append(ex.getMessage()).append("\n");
-                        }
-                    }
-                }
-                debugInfo.put("manual_schema_init_statements_executed", count);
-                debugInfo.put("manual_schema_init_statements_failed", failed);
-                debugInfo.put("manual_schema_init_errors", errors.toString());
-            }
-        } catch (Exception e) {
-            debugInfo.put("manual_schema_init_error", e.getMessage());
-        }
-
-        // 5. Query users table again
-        try {
-            db.query("SELECT * FROM users LIMIT 1");
-            debugInfo.put("query_users_table", "SUCCESS");
-        } catch (Exception e) {
-            debugInfo.put("query_users_table", "FAILED: " + e.getMessage());
-            StringWriter sw = new StringWriter();
-            e.printStackTrace(new PrintWriter(sw));
-            debugInfo.put("query_users_table_stacktrace", sw.toString());
-        }
-
-        return debugInfo;
+        return info;
     }
 }

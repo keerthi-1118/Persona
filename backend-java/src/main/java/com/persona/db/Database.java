@@ -6,7 +6,6 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
 
 import jakarta.annotation.PostConstruct;
-import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.List;
@@ -14,10 +13,9 @@ import java.util.Map;
 import java.util.UUID;
 
 /**
- * Persona — Database Utility
- * Replaces: backend/database.py
+ * Persona — Database Utility (PostgreSQL Only)
  *
- * Central wrapper around JdbcTemplate (SQLite).
+ * Central wrapper around JdbcTemplate for PostgreSQL.
  * Provides: query(), execute(), newId(), nowIso(), initDb()
  */
 @Component
@@ -57,58 +55,58 @@ public class Database {
     }
 
     /**
-     * Initialize SQLite database from schema.sql on startup.
-     * Replaces the init_db() call at bottom of database.py.
+     * Initialize PostgreSQL database from schema_postgres.sql on startup.
+     * Each SQL statement is executed individually, separated by semicolons.
+     * "Already exists" errors are safely ignored so restarts are idempotent.
      */
     @PostConstruct
     public void initDb() {
         try {
-            ClassPathResource resource = new ClassPathResource("schema.sql");
+            System.out.println("[Database] Connecting to PostgreSQL...");
+
+            ClassPathResource resource = new ClassPathResource("schema_postgres.sql");
             String script = new String(resource.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
 
-            // Enable foreign keys for SQLite
-            jdbc.execute("PRAGMA foreign_keys = ON");
-
-            // Split and execute each statement individually (SQLite doesn't support executescript via JDBC)
-            for (String stmt : script.split(";")) {
-                // Strip out comment lines
+            // Split by semicolons and execute each statement individually
+            String[] parts = script.split(";");
+            int executed = 0;
+            for (String part : parts) {
+                // Strip comment lines
                 StringBuilder sb = new StringBuilder();
-                for (String line : stmt.split("\n")) {
-                    String trimmedLine = line.trim();
-                    if (!trimmedLine.startsWith("--")) {
+                for (String line : part.split("\n")) {
+                    if (!line.trim().startsWith("--")) {
                         sb.append(line).append("\n");
                     }
                 }
-                String cleaned = sb.toString().trim();
+                String stmt = sb.toString().trim();
+                if (stmt.isEmpty()) continue;
 
-                if (!cleaned.isEmpty()) {
-                    try {
-                        jdbc.execute(cleaned);
-                    } catch (Exception e) {
-                        String msg = e.getMessage() != null ? e.getMessage().toLowerCase() : "";
-                        if (msg.contains("already exists") || msg.contains("duplicate column")) {
-                            // ignore expected duplicate errors
-                        } else {
-                            System.err.println("[Database] Error executing statement: " + cleaned);
-                            System.err.println("[Database] Cause: " + e.getMessage());
-                        }
+                try {
+                    jdbc.execute(stmt);
+                    executed++;
+                } catch (Exception e) {
+                    String msg = e.getMessage() != null ? e.getMessage().toLowerCase() : "";
+                    // Ignore safe errors: already exists, duplicate, etc.
+                    if (msg.contains("already exists") || msg.contains("duplicate")) {
+                        // expected on restart — skip silently
+                    } else {
+                        System.err.println("[Database] Warning on: "
+                            + stmt.substring(0, Math.min(60, stmt.length()))
+                            + " => " + e.getMessage());
                     }
                 }
             }
 
-            // Dynamic migration: add assignment_id column to tasks table if it is missing
+            // Ensure assignment_id column exists (safe for existing databases)
             try {
-                jdbc.execute("ALTER TABLE tasks ADD COLUMN assignment_id TEXT");
-                System.out.println("[OK] Dynamically added assignment_id column to tasks table.");
-            } catch (Exception ignored) {
-                // Column might already exist, ignore this error
-            }
+                jdbc.execute("ALTER TABLE tasks ADD COLUMN IF NOT EXISTS assignment_id TEXT");
+            } catch (Exception ignored) {}
 
-            System.out.println("[OK] SQLite Database Initialized.");
+            System.out.println("[OK] PostgreSQL initialized. Ran " + executed + " statements.");
         } catch (Exception e) {
             System.err.println("[ERROR] Database initialization failed!");
             e.printStackTrace();
-            throw new RuntimeException(e);
+            throw new RuntimeException("Failed to initialize PostgreSQL database", e);
         }
     }
 

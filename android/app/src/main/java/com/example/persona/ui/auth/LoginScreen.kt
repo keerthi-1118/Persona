@@ -20,6 +20,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.persona.R
 import com.example.persona.theme.*
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Settings
 
 @Composable
 fun LoginScreen(
@@ -34,6 +36,7 @@ fun LoginScreen(
 
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
+    var showUrlDialog by remember { mutableStateOf(false) }
 
     LaunchedEffect(isLoggedIn) {
         if (isLoggedIn) {
@@ -47,7 +50,20 @@ fun LoginScreen(
                 .fillMaxSize()
                 .safeDrawingPadding()
         ) {
-        Column(
+            IconButton(
+                onClick = { showUrlDialog = true },
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(16.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Outlined.Settings,
+                    contentDescription = "Configure Server URL",
+                    tint = Color.White
+                )
+            }
+
+            Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(24.dp)
@@ -195,6 +211,64 @@ fun LoginScreen(
                 TextButton(onClick = onNavigateToSignUp) {
                     Text("Sign Up", color = Accent, fontWeight = FontWeight.Bold, fontSize = 14.sp)
                 }
+            }
+
+            if (showUrlDialog) {
+                var urlInput by remember { mutableStateOf(baseUrl) }
+                AlertDialog(
+                    onDismissRequest = { showUrlDialog = false },
+                    title = { 
+                        Text("Server Configuration", fontWeight = FontWeight.Bold, color = TextPrimary) 
+                    },
+                    text = {
+                        Column {
+                            Text(
+                                text = "Configure API Base URL:",
+                                fontSize = 12.sp,
+                                color = TextMuted,
+                                modifier = Modifier.padding(bottom = 8.dp)
+                            )
+                            OutlinedTextField(
+                                value = urlInput,
+                                onValueChange = { urlInput = it },
+                                label = { Text("Base URL") },
+                                singleLine = true,
+                                modifier = Modifier.fillMaxWidth(),
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    focusedBorderColor = Accent,
+                                    unfocusedBorderColor = BorderLight,
+                                    focusedTextColor = TextPrimary,
+                                    unfocusedTextColor = TextPrimary
+                                )
+                            )
+                            Spacer(modifier = Modifier.height(12.dp))
+                            Text(
+                                text = "Default: https://persona-b6kj.onrender.com/\nLocal Emulator: http://10.0.2.2:5000/\nLocal PC: http://<your-pc-ip>:5000/",
+                                fontSize = 11.sp,
+                                color = TextMuted,
+                                lineHeight = 16.sp
+                            )
+                        }
+                    },
+                    confirmButton = {
+                        Button(
+                            onClick = {
+                                viewModel.updateBaseUrl(urlInput)
+                                showUrlDialog = false
+                            },
+                            colors = ButtonDefaults.buttonColors(containerColor = Accent)
+                        ) {
+                            Text("Save", color = Bg)
+                        }
+                    },
+                    dismissButton = {
+                        TextButton(onClick = { showUrlDialog = false }) {
+                            Text("Cancel", color = TextMuted)
+                        }
+                    },
+                    containerColor = DialogBg,
+                    shape = RoundedCornerShape(24.dp)
+                )
             }
         }
     }

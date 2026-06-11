@@ -34,7 +34,7 @@ public class SchedulerService {
         List<LocalDateTime[]> busy = new ArrayList<>();
 
         List<Map<String, Object>> tasks = db.query(
-            "SELECT start_time, end_time FROM tasks WHERE user_id=? AND date(start_time)=? AND start_time IS NOT NULL", uid, dayStr);
+            "SELECT start_time, end_time FROM tasks WHERE user_id=? AND start_time::date = CAST(? AS date) AND start_time IS NOT NULL", uid, dayStr);
         for (Map<String, Object> t : tasks) {
             try {
                 LocalDateTime s = LocalDateTime.parse(t.get("start_time").toString().replace("Z", ""));
@@ -138,7 +138,7 @@ public class SchedulerService {
     private void clearFuturePendingTasks(String uid) {
         String now = db.nowIso();
         db.execute("DELETE FROM task_blocks WHERE start_time > ? AND task_id IN (SELECT id FROM tasks WHERE user_id=? AND status='pending')", now, uid);
-        db.execute("UPDATE tasks SET start_time=NULL, end_time=NULL, is_scheduled=0 WHERE user_id=? AND status='pending' AND start_time > ? AND is_scheduled=1", uid, now);
+        db.execute("UPDATE tasks SET start_time=NULL, end_time=NULL, is_scheduled=FALSE WHERE user_id=? AND status='pending' AND start_time > ? AND is_scheduled=TRUE", uid, now);
     }
 
     public Map<String, Object> autoScheduleAll(String uid) {
@@ -203,7 +203,7 @@ public class SchedulerService {
                     db.execute("INSERT INTO task_blocks (id, task_id, start_time, end_time) VALUES (?, ?, ?, ?)",
                         bid, task.get("id"), slotStart.toString(), slotEnd.toString());
                     
-                    db.execute("UPDATE tasks SET is_scheduled=1, updated_at=? WHERE id=?", db.nowIso(), task.get("id"));
+                    db.execute("UPDATE tasks SET is_scheduled=TRUE, updated_at=? WHERE id=?", db.nowIso(), task.get("id"));
 
                     scheduled.add(Map.of(
                         "task_id", task.get("id"),

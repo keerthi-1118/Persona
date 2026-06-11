@@ -32,8 +32,8 @@ public class AiExpenseService {
 
         // Fetch expenses for the given month
         List<Map<String, Object>> expenses = db.query(
-            "SELECT amount, category, description, date FROM expenses WHERE user_id = ? AND date LIKE ?",
-            uid, month + "%"
+            "SELECT amount, category, description, date FROM expenses WHERE user_id = ? AND TO_CHAR(date, 'YYYY-MM') = ?",
+            uid, month
         );
 
         if (expenses.isEmpty()) {

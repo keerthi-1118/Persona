@@ -172,7 +172,14 @@ fun PlannerScreen(repository: PersonaRepository) {
                                 uploadMessage = resp.body()?.message ?: "Successfully imported timetable!"
                                 loadSchedule()
                             } else {
-                                uploadMessage = "OCR Sync failed: Server error."
+                                val errorBody = resp.errorBody()?.string()
+                                val errorMsg = try {
+                                    val json = com.google.gson.JsonParser.parseString(errorBody).asJsonObject
+                                    if (json.has("error")) json.get("error").asString else "OCR Sync failed: Server error."
+                                } catch (e: Exception) {
+                                    "OCR Sync failed: Server error."
+                                }
+                                uploadMessage = errorMsg
                             }
                         } else {
                             uploadMessage = "Could not read image file."

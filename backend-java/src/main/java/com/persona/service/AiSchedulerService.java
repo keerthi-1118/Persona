@@ -68,7 +68,7 @@ public class AiSchedulerService {
 
     public Map<String, Object> generateSmartSchedule(String uid) throws Exception {
         List<Map<String, Object>> tasks = db.query(
-            "SELECT * FROM tasks WHERE user_id=? AND status='pending' AND (start_time IS NULL OR is_scheduled=1)", uid);
+            "SELECT * FROM tasks WHERE user_id=? AND status='pending' AND (start_time IS NULL OR is_scheduled=TRUE)", uid);
         
         List<Map<String, Object>> timetable = db.query(
             "SELECT * FROM timetable WHERE user_id=?", uid);
@@ -141,7 +141,7 @@ public class AiSchedulerService {
         // 1. Clear future pending task blocks
         String now = db.nowIso();
         db.execute("DELETE FROM task_blocks WHERE start_time > ? AND task_id IN (SELECT id FROM tasks WHERE user_id=? AND status='pending')", now, uid);
-        db.execute("UPDATE tasks SET start_time=NULL, end_time=NULL, is_scheduled=0 WHERE user_id=? AND status='pending' AND start_time > ? AND is_scheduled=1", uid, now);
+        db.execute("UPDATE tasks SET start_time=NULL, end_time=NULL, is_scheduled=FALSE WHERE user_id=? AND status='pending' AND start_time > ? AND is_scheduled=TRUE", uid, now);
 
         // 2. Insert new blocks
         List<Map<String, Object>> verifiedBlocks = new ArrayList<>();
@@ -157,7 +157,7 @@ public class AiSchedulerService {
                     String bid = db.newId();
                     db.execute("INSERT INTO task_blocks (id, task_id, start_time, end_time) VALUES (?, ?, ?, ?)",
                         bid, taskId, startTime, endTime);
-                    db.execute("UPDATE tasks SET is_scheduled=1, updated_at=? WHERE id=?", db.nowIso(), taskId);
+                    db.execute("UPDATE tasks SET is_scheduled=TRUE, updated_at=? WHERE id=?", db.nowIso(), taskId);
 
                     Map<String, Object> verified = new HashMap<>(block);
                     verified.put("title", taskCheck.get(0).get("title"));

@@ -31,7 +31,7 @@ public class FocusController {
         if (date == null || date.isEmpty()) date = db.todayStr();
 
         return ResponseEntity.ok(db.query(
-            "SELECT * FROM focus_sessions WHERE user_id=? AND date(started_at)=? ORDER BY started_at DESC",
+            "SELECT * FROM focus_sessions WHERE user_id=? AND started_at::date = CAST(? AS date) ORDER BY started_at DESC",
             uid, date
         ));
     }
@@ -49,7 +49,7 @@ public class FocusController {
             data.get("task_id"),
             toInt(data.getOrDefault("duration", 25)),
             str(data.getOrDefault("type", "focus")),
-            now, 0, now
+            now, false, now
         );
 
         return ResponseEntity.status(201).body(Map.of("session_id", sid, "started_at", now));
@@ -63,8 +63,8 @@ public class FocusController {
         if (uid == null) return err(401, "Authentication required");
 
         Object completedObj = data.getOrDefault("completed", true);
-        int completed = (completedObj instanceof Boolean b) ? (b ? 1 : 0)
-                       : (completedObj != null && !completedObj.toString().equals("false")) ? 1 : 0;
+        boolean completed = completedObj instanceof Boolean ? (Boolean) completedObj
+            : !"false".equalsIgnoreCase(String.valueOf(completedObj)) && !"0".equals(String.valueOf(completedObj));
 
         db.execute("UPDATE focus_sessions SET ended_at=?, completed=? WHERE id=? AND user_id=?",
             db.nowIso(), completed, sid, uid);
@@ -79,7 +79,7 @@ public class FocusController {
         String today = db.todayStr();
         List<Map<String, Object>> rows = db.query(
             "SELECT SUM(duration) as total_mins, COUNT(*) as sessions FROM focus_sessions " +
-            "WHERE user_id=? AND date(started_at)=? AND completed=1 AND type='focus'",
+            "WHERE user_id=? AND started_at::date = CAST(? AS date) AND completed=TRUE AND type='focus'",
             uid, today
         );
 

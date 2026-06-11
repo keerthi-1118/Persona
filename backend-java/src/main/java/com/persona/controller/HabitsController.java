@@ -35,7 +35,7 @@ public class HabitsController {
         for (Map<String, Object> h : habits) {
             String hid = str(h.get("id"));
             List<Map<String, Object>> logs = db.query(
-                "SELECT id FROM habit_logs WHERE habit_id=? AND date=? AND completed=1", hid, today);
+                "SELECT id FROM habit_logs WHERE habit_id=? AND date=? AND completed=TRUE", hid, today);
             h.put("done_today", !logs.isEmpty());
             h.put("streak",     calcStreak(hid));
         }
@@ -84,13 +84,16 @@ public class HabitsController {
         boolean done;
         if (!logs.isEmpty()) {
             Map<String, Object> log = logs.get(0);
-            int newVal = toInt(log.get("completed")) == 1 ? 0 : 1;
-            db.execute("UPDATE habit_logs SET completed=? WHERE id=?", newVal, str(log.get("id")));
-            done = newVal == 1;
+            Object completedVal = log.get("completed");
+            boolean currentDone = completedVal instanceof Boolean ? (Boolean) completedVal
+                : !"false".equalsIgnoreCase(String.valueOf(completedVal)) && !"0".equals(String.valueOf(completedVal));
+            boolean newDone = !currentDone;
+            db.execute("UPDATE habit_logs SET completed=? WHERE id=?", newDone, str(log.get("id")));
+            done = newDone;
         } else {
             db.execute(
                 "INSERT INTO habit_logs (id, habit_id, user_id, date, completed) VALUES (?,?,?,?,?)",
-                db.newId(), hid, uid, today, 1
+                db.newId(), hid, uid, today, true
             );
             done = true;
         }
@@ -101,7 +104,7 @@ public class HabitsController {
     // ── Helpers ───────────────────────────────────────────────
     private int calcStreak(String habitId) {
         List<Map<String, Object>> logs = db.query(
-            "SELECT date FROM habit_logs WHERE habit_id=? AND completed=1 ORDER BY date DESC", habitId);
+            "SELECT date FROM habit_logs WHERE habit_id=? AND completed=TRUE ORDER BY date DESC", habitId);
         if (logs.isEmpty()) return 0;
 
         Set<String> dates = new HashSet<>();

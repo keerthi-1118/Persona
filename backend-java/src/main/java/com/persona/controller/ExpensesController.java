@@ -37,8 +37,8 @@ public class ExpensesController {
         StringBuilder sql = new StringBuilder("SELECT * FROM expenses WHERE user_id = ?");
         List<Object> params = new ArrayList<>(List.of(uid));
         if (month != null && !month.isEmpty()) {
-            sql.append(" AND date LIKE ?");
-            params.add(month + "%");
+            sql.append(" AND TO_CHAR(date, 'YYYY-MM') = ?");
+            params.add(month);
         }
 
         List<Map<String, Object>> rows = db.query(sql.toString(), params.toArray());
@@ -136,7 +136,7 @@ public class ExpensesController {
         if (month == null || month.isEmpty()) month = db.nowIso().substring(0, 7);
 
         List<Map<String, Object>> rows = db.query(
-            "SELECT * FROM expenses WHERE user_id = ? AND date LIKE ?", uid, month + "%"
+            "SELECT * FROM expenses WHERE user_id = ? AND TO_CHAR(date, 'YYYY-MM') = ?", uid, month
         );
 
         double totalSpent = 0, totalIncome = 0;
