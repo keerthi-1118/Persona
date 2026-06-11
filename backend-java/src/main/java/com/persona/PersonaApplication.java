@@ -16,6 +16,7 @@ public class PersonaApplication {
         // ── Fix Render DATABASE_URL format before Spring starts ──────────
         // Render provides: postgresql://user:pass@host/db
         // Spring Boot needs: jdbc:postgresql://user:pass@host/db
+        // We convert and store as PERSONA_JDBC_URL to avoid self-reference issues
         fixDatabaseUrl();
 
         SpringApplication.run(PersonaApplication.class, args);
@@ -25,29 +26,22 @@ public class PersonaApplication {
     }
 
     private static void fixDatabaseUrl() {
-        // Only fix if SPRING_DATASOURCE_URL is not already manually set
-        String alreadySet = System.getProperty("spring.datasource.url");
-        if (alreadySet != null && !alreadySet.isEmpty()) return;
-
         // Try DATABASE_URL (Render sets this automatically when you link a PostgreSQL db)
         String dbUrl = System.getenv("DATABASE_URL");
         if (dbUrl != null && !dbUrl.isEmpty()) {
-            if (!dbUrl.startsWith("jdbc:")) {
-                dbUrl = "jdbc:" + dbUrl;
-            }
-            System.setProperty("spring.datasource.url", dbUrl);
-            System.out.println("[DB] DATABASE_URL detected and converted to JDBC format.");
+            String jdbcUrl = dbUrl.startsWith("jdbc:") ? dbUrl : "jdbc:" + dbUrl;
+            // Store as a NEW property name to avoid self-referential loops
+            System.setProperty("PERSONA_JDBC_URL", jdbcUrl);
+            System.out.println("[DB] DATABASE_URL converted: " + jdbcUrl.replaceAll(":[^:@]+@", ":***@"));
             return;
         }
 
-        // Try SPRING_DATASOURCE_URL env var
+        // Try SPRING_DATASOURCE_URL env var (manual override)
         String springUrl = System.getenv("SPRING_DATASOURCE_URL");
         if (springUrl != null && !springUrl.isEmpty()) {
-            if (!springUrl.startsWith("jdbc:")) {
-                springUrl = "jdbc:" + springUrl;
-            }
-            System.setProperty("spring.datasource.url", springUrl);
-            System.out.println("[DB] SPRING_DATASOURCE_URL detected and set.");
+            String jdbcUrl = springUrl.startsWith("jdbc:") ? springUrl : "jdbc:" + springUrl;
+            System.setProperty("PERSONA_JDBC_URL", jdbcUrl);
+            System.out.println("[DB] SPRING_DATASOURCE_URL converted: " + jdbcUrl.replaceAll(":[^:@]+@", ":***@"));
         }
     }
 }
