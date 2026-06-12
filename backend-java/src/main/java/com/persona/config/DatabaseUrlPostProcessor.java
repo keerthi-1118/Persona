@@ -47,41 +47,92 @@ public class DatabaseUrlPostProcessor implements EnvironmentPostProcessor {
     /**
      * Converts postgresql:// or postgres:// → jdbc:postgresql://
      * Also adds port :5432 if missing (Render internal URLs omit the port).
+     * Extracts user and password from authority section (user:pass@host) and appends as query params.
      */
     private static String fixUrl(String url) {
-        // Step 1: ensure jdbc: prefix
+        try {
+            // Strip any protocol prefixes to make parsing uniform
+            String temp = url;
+            if (temp.startsWith("jdbc:")) {
+                temp = temp.substring(5);
+            }
+            if (temp.startsWith("postgresql://")) {
+                temp = temp.substring(13);
+            } else if (temp.startsWith("postgres://")) {
+                temp = temp.substring(11);
+            }
+
+            // Check if there are credentials in the URL (contains '@')
+            int atIdx = temp.lastIndexOf('@');
+            if (atIdx != -1) {
+                String credentials = temp.substring(0, atIdx);
+                String hostAndDb = temp.substring(atIdx + 1);
+
+                String user = "";
+                String pass = "";
+                int colonIdx = credentials.indexOf(':');
+                if (colonIdx != -1) {
+                    user = credentials.substring(0, colonIdx);
+                    pass = credentials.substring(colonIdx + 1);
+                } else {
+                    user = credentials;
+                }
+
+                String hostAndPort = "";
+                String dbName = "";
+                int slashIdx = hostAndDb.indexOf('/');
+                if (slashIdx != -1) {
+                    hostAndPort = hostAndDb.substring(0, slashIdx);
+                    dbName = hostAndDb.substring(slashIdx + 1);
+                } else {
+                    hostAndPort = hostAndDb;
+                }
+
+                // Add port 5432 if missing
+                if (!hostAndPort.contains(":")) {
+                    hostAndPort = hostAndPort + ":5432";
+                }
+
+                // Remove any existing query parameters from dbName to handle cleanly
+                int queryIdx = dbName.indexOf('?');
+                String queryParams = "";
+                if (queryIdx != -1) {
+                    queryParams = dbName.substring(queryIdx);
+                    dbName = dbName.substring(0, queryIdx);
+                }
+
+                // Reconstruct clean JDBC URL
+                String resolvedUrl = "jdbc:postgresql://" + hostAndPort + "/" + dbName;
+                
+                // Append credentials as query parameters
+                StringBuilder sb = new StringBuilder(resolvedUrl);
+                sb.append("?user=").append(user);
+                if (!pass.isEmpty()) {
+                    sb.append("&password=").append(pass);
+                }
+                
+                // Append any existing parameters
+                if (!queryParams.isEmpty()) {
+                    sb.append("&").append(queryParams.substring(1)); // strip leading ?
+                }
+
+                return sb.toString();
+            }
+        } catch (Exception e) {
+            System.err.println("[DB] Warning: Failed parsing database URL: " + e.getMessage() + ". Falling back to original URL.");
+        }
+
+        // Fallback to basic prefix addition if no '@' exists
         if (!url.startsWith("jdbc:")) {
             url = "jdbc:" + url;
         }
-
-        // Step 2: replace jdbc:postgres:// → jdbc:postgresql:// (common variant)
         url = url.replace("jdbc:postgres://", "jdbc:postgresql://");
-
-        // Step 3: add :5432 port if missing
-        // Pattern: jdbc:postgresql://user:pass@host/db  (no port between host and /)
-        // We need to check after the @ symbol
-        try {
-            int atIdx = url.lastIndexOf('@');
-            if (atIdx != -1) {
-                String afterAt = url.substring(atIdx + 1); // e.g. "host/db"
-                if (!afterAt.contains(":")) {
-                    // No port found after @ — insert :5432 before the database path
-                    int slashIdx = afterAt.indexOf('/');
-                    if (slashIdx != -1) {
-                        String host = afterAt.substring(0, slashIdx);
-                        String rest = afterAt.substring(slashIdx);
-                        url = url.substring(0, atIdx + 1) + host + ":5432" + rest;
-                    }
-                }
-            }
-        } catch (Exception ignored) {}
-
         return url;
     }
 
     private static void setDatasourceUrl(ConfigurableEnvironment env, String jdbcUrl, String source) {
         System.out.println("[DB] " + source + " → converted to: "
-            + jdbcUrl.replaceAll(":[^:@/]+@", ":***@"));
+            + jdbcUrl.replaceAll("password=[^&]*", "password=***"));
         env.getPropertySources().addFirst(
             new MapPropertySource("renderdDatabaseUrl",
                 Collections.singletonMap("spring.datasource.url", jdbcUrl))
