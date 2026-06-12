@@ -29,6 +29,10 @@ public class WebPushService {
             Security.addProvider(new BouncyCastleProvider());
         }
         if (!vapidPublicKey.isEmpty() && !vapidPrivateKey.isEmpty()) {
+            if (vapidPublicKey.contains("your_") || vapidPrivateKey.contains("your_")) {
+                System.out.println("WebPushService: VAPID keys not configured (using placeholder keys). Web push notifications are disabled.");
+                return;
+            }
             try {
                 pushService = new PushService(vapidPublicKey, vapidPrivateKey, vapidSubject);
             } catch (Exception e) {

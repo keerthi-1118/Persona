@@ -22,10 +22,18 @@ public class DatabaseUrlPostProcessor implements EnvironmentPostProcessor {
 
     @Override
     public void postProcessEnvironment(ConfigurableEnvironment env, SpringApplication app) {
-        // Priority 1: SPRING_DATASOURCE_URL (already set correctly by user)
+        // Priority 1: SPRING_DATASOURCE_URL or spring.datasource.url set externally
         String springUrl = env.getProperty("SPRING_DATASOURCE_URL");
+        if (springUrl == null || springUrl.isBlank()) {
+            springUrl = env.getProperty("spring.datasource.url");
+            // If it is the default localhost fallback, ignore it so we don't rewrite it
+            if (springUrl != null && springUrl.contains("localhost:5432/persona")) {
+                springUrl = null;
+            }
+        }
+        
         if (springUrl != null && !springUrl.isBlank()) {
-            setDatasourceUrl(env, fixUrl(springUrl), "SPRING_DATASOURCE_URL");
+            setDatasourceUrl(env, fixUrl(springUrl), "spring.datasource.url");
             return;
         }
 
