@@ -35,6 +35,19 @@ public class DebugController {
     }
 
     /** Database health check — confirms PostgreSQL connectivity and tables. */
+    private String getDetailedErrorMessage(Exception e) {
+        StringBuilder sb = new StringBuilder(e.getMessage() != null ? e.getMessage() : "Unknown error");
+        Throwable cause = e.getCause();
+        int depth = 0;
+        while (cause != null && depth < 5) {
+            sb.append(" -> ").append(cause.getMessage() != null ? cause.getMessage() : cause.getClass().getSimpleName());
+            cause = cause.getCause();
+            depth++;
+        }
+        return sb.toString();
+    }
+
+    /** Database health check — confirms PostgreSQL connectivity and tables. */
     @GetMapping("/api/debug/db")
     public Map<String, Object> debugDb() {
         Map<String, Object> info = new HashMap<>();
@@ -48,7 +61,8 @@ public class DebugController {
             info.put("users_table", "OK");
             info.put("users_count", count);
         } catch (Exception e) {
-            info.put("users_table", "FAILED: " + e.getMessage());
+            e.printStackTrace();
+            info.put("users_table", "FAILED: " + getDetailedErrorMessage(e));
         }
 
         // Test query on timetable table
@@ -56,7 +70,7 @@ public class DebugController {
             db.query("SELECT COUNT(*) FROM timetable");
             info.put("timetable_table", "OK");
         } catch (Exception e) {
-            info.put("timetable_table", "FAILED: " + e.getMessage());
+            info.put("timetable_table", "FAILED: " + getDetailedErrorMessage(e));
         }
 
         // Test query on tasks table
@@ -64,7 +78,7 @@ public class DebugController {
             db.query("SELECT COUNT(*) FROM tasks");
             info.put("tasks_table", "OK");
         } catch (Exception e) {
-            info.put("tasks_table", "FAILED: " + e.getMessage());
+            info.put("tasks_table", "FAILED: " + getDetailedErrorMessage(e));
         }
 
         // Test query on expenses table
@@ -72,7 +86,7 @@ public class DebugController {
             db.query("SELECT COUNT(*) FROM expenses");
             info.put("expenses_table", "OK");
         } catch (Exception e) {
-            info.put("expenses_table", "FAILED: " + e.getMessage());
+            info.put("expenses_table", "FAILED: " + getDetailedErrorMessage(e));
         }
 
         info.put("status", "Database health check complete");
