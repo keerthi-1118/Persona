@@ -28,14 +28,39 @@ public class Database {
         this.jdbc = jdbc;
     }
 
+    private Object[] preprocessParams(Object[] params) {
+        if (params == null) return null;
+        Object[] processed = new Object[params.length];
+        for (int i = 0; i < params.length; i++) {
+            Object p = params[i];
+            if (p instanceof String) {
+                String s = (String) p;
+                // Check if it's an ISO timestamp string: YYYY-MM-DDTHH:MM:SS...
+                if (s.length() >= 19 && s.charAt(4) == '-' && s.charAt(7) == '-' && s.charAt(10) == 'T' && s.charAt(13) == ':' && s.charAt(16) == ':') {
+                    try {
+                        java.time.LocalDateTime ldt = java.time.LocalDateTime.parse(s);
+                        processed[i] = ldt.atOffset(java.time.ZoneOffset.UTC);
+                    } catch (Exception e) {
+                        processed[i] = p;
+                    }
+                } else {
+                    processed[i] = p;
+                }
+            } else {
+                processed[i] = p;
+            }
+        }
+        return processed;
+    }
+
     /** Execute a SELECT and return list of row-maps. */
     public List<Map<String, Object>> query(String sql, Object... params) {
-        return jdbc.queryForList(sql, params);
+        return jdbc.queryForList(sql, preprocessParams(params));
     }
 
     /** Execute INSERT / UPDATE / DELETE. */
     public void execute(String sql, Object... params) {
-        jdbc.update(sql, params);
+        jdbc.update(sql, preprocessParams(params));
     }
 
     /** Generate a UUID hex string (no dashes) — same as Python new_id(). */
