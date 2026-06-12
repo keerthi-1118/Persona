@@ -43,6 +43,13 @@ public class Database {
                     } catch (Exception e) {
                         processed[i] = p;
                     }
+                } else if (s.length() == 10 && s.charAt(4) == '-' && s.charAt(7) == '-') {
+                    // Check if it's a plain date string: YYYY-MM-DD
+                    try {
+                        processed[i] = java.time.LocalDate.parse(s);
+                    } catch (Exception e) {
+                        processed[i] = p;
+                    }
                 } else {
                     processed[i] = p;
                 }
@@ -53,9 +60,42 @@ public class Database {
         return processed;
     }
 
+    private List<Map<String, Object>> postprocessResults(List<Map<String, Object>> rows) {
+        if (rows == null) return null;
+        List<Map<String, Object>> processedRows = new java.util.ArrayList<>(rows.size());
+        for (Map<String, Object> row : rows) {
+            Map<String, Object> processedRow = new java.util.LinkedHashMap<>(row.size());
+            for (Map.Entry<String, Object> entry : row.entrySet()) {
+                Object val = entry.getValue();
+                if (val instanceof java.sql.Timestamp) {
+                    String str = val.toString().replace(' ', 'T');
+                    processedRow.put(entry.getKey(), str);
+                } else if (val instanceof java.sql.Date) {
+                    processedRow.put(entry.getKey(), val.toString());
+                } else if (val instanceof java.time.OffsetDateTime) {
+                    String str = ((java.time.OffsetDateTime) val).toInstant().toString().replace("Z", "");
+                    processedRow.put(entry.getKey(), str);
+                } else if (val instanceof java.time.LocalDateTime) {
+                    String str = ((java.time.LocalDateTime) val).toString();
+                    processedRow.put(entry.getKey(), str);
+                } else if (val instanceof java.time.LocalDate) {
+                    processedRow.put(entry.getKey(), val.toString());
+                } else if (val instanceof java.util.Date) {
+                    String str = new java.sql.Timestamp(((java.util.Date) val).getTime()).toString().replace(' ', 'T');
+                    processedRow.put(entry.getKey(), str);
+                } else {
+                    processedRow.put(entry.getKey(), val);
+                }
+            }
+            processedRows.add(processedRow);
+        }
+        return processedRows;
+    }
+
     /** Execute a SELECT and return list of row-maps. */
     public List<Map<String, Object>> query(String sql, Object... params) {
-        return jdbc.queryForList(sql, preprocessParams(params));
+        List<Map<String, Object>> rows = jdbc.queryForList(sql, preprocessParams(params));
+        return postprocessResults(rows);
     }
 
     /** Execute INSERT / UPDATE / DELETE. */

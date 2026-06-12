@@ -457,7 +457,15 @@ public class AuthController {
                 "        <span class=\"icon\">🎉</span>\n" +
                 "        <h1>Google Account Linked!</h1>\n" +
                 "        <p>Your Google Classroom account has been successfully linked to your Persona app. You can now return to the app and click \"Sync\" again to import your assignments.</p>\n" +
-                "        <button class=\"btn\" onclick=\"window.close();\">Close Window</button>\n" +
+                "        <button class=\"btn\" onclick=\"closeOrRedirect();\">Close Window</button>\n" +
+                "        <script>\n" +
+                "            function closeOrRedirect() {\n" +
+                "                window.close();\n" +
+                "                setTimeout(function() {\n" +
+                "                    window.location.href = 'intent://#Intent;scheme=persona;package=com.example.persona;end';\n" +
+                "                }, 300);\n" +
+                "            }\n" +
+                "        </script>\n" +
                 "    </div>\n" +
                 "</body>\n" +
                 "</html>");
