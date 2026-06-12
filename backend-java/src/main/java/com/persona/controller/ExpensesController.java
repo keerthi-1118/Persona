@@ -170,9 +170,10 @@ public class ExpensesController {
             return ResponseEntity.ok(analysis);
         } catch (Exception e) {
             System.err.println("AI Expense Analysis failed: " + e.getMessage());
+            e.printStackTrace();
             return ResponseEntity.ok(Map.of(
-                "analysis", "Unable to analyze expenses at this time.",
-                "advice", "Ensure your Gemini API key is configured correctly in application.properties.",
+                "analysis", "Unable to analyze expenses at this time: " + e.getMessage(),
+                "advice", "Please report this error to support.",
                 "unnecessarySpending", "Unknown"
             ));
         }
